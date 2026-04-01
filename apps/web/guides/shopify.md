@@ -1,19 +1,19 @@
-You can add the Dub client-side script to your Shopify store simply by installing the [Dub Shopify App](https://d.to/shopify/app) from the App Store.
+您只需从 App Store 安装 [Dub Shopify App](https://d.to/shopify/app)，即可将 Dub 客户端脚本添加到您的 Shopify 商店。
 
-![The connection status in the Dub Conversions app](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/shopify/shopify-app.png)
+![Dub Conversions 应用中的连接状态](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/shopify/shopify-app.png)
 
-Then, make sure to activate the script by following these steps:
+然后，请务必按照以下步骤激活脚本：
 
-1. Navigate to your Shopify admin panel.
-2. Go to **Online Store** > **Themes**.
-3. Click on **Customize** for your current theme.
-4. In the theme editor, select the **App embeds** tab.
-5. Locate the **Analytics Script** for the Dub Conversions app and toggle it to activate.
+1. 导航到您的 Shopify 管理面板。
+2. 转到 **在线商店 (Online Store)** > **模板 (Themes)**。
+3. 点击当前模板的 **自定义 (Customize)**。
+4. 在模板编辑器中，选择 **应用嵌入 (App embeds)** 选项卡。
+5. 找到 Dub Conversions 应用的 **Analytics Script (分析脚本)**，并将其切换为激活状态。
 
-![Enable the Dub client-side script in your Shopify theme](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/shopify/shopify-enable-tracking-script.png)
+![在 Shopify 模板中启用 Dub 客户端脚本](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/shopify/shopify-enable-tracking-script.png)
 
-### Installation video
+### 安装视频
 
-Here's a video showing how to install and activate the Dub client-side script in your Shopify store:
+以下视频展示了如何在 Shopify 商店中安装并激活 Dub 客户端脚本：
 
-[Watch the installation video](https://www.loom.com/embed/936970b8db5b41488657fa92ffec384a?sid=04030975-6d7e-4126-8487-a1d9a3095efc)
+[观看安装视频](https://www.loom.com/embed/936970b8db5b41488657fa92ffec384a?sid=04030975-6d7e-4126-8487-a1d9a3095efc)

@@ -1,46 +1,46 @@
-Configure Google Tag Manager for lead tracking
+配置 Google Tag Manager 进行 lead (潜在客户) 跟踪
 
-The following steps assume that you've already installed the Dub Analytics script through GTM.
+以下步骤假设您已经通过 GTM 安装了 Dub Analytics 脚本。
 
-## Step 1: Create a GTM Variable to read the dub_id Cookie
+## 第一步：创建一个 GTM 变量来读取 dub_id Cookie
 
-To read the `dub_id` cookie that Dub Analytics sets, you'll need to create a new **User-Defined Variable** in Google Tag Manager.
+要读取 Dub Analytics 设置的 `dub_id` cookie，您需要在 Google Tag Manager 中创建一个新的 **用户定义的变量 (User-Defined Variable)**。
 
-In your GTM workspace, navigate to the **Variables** section and click **New** to create a new variable.
+在您的 GTM 工作区中，导航到 **变量 (Variables)** 部分，然后点击 **新建 (New)** 以创建一个新变量。
 
-Configure the variable with the following settings:
+使用以下设置配置该变量：
 
-- **Variable Type**: Select **1st Party Cookie**
-- **Cookie Name**: `dub_id`
-- **Variable Name**: Name it "Dub ID Cookie"
+- **变量类型 (Variable Type)**：选择 **第一方 Cookie (1st Party Cookie)**
+- **Cookie 名称 (Cookie Name)**：`dub_id`
+- **变量名称 (Variable Name)**：命名为 "Dub ID Cookie"
 
-Click **Save** to create the variable.
+点击 **保存 (Save)** 以创建变量。
 
-## Step 2: Tracking lead events
+## 第二步：跟踪 lead 事件
 
-There are two ways to track lead events with Google Tag Manager:
+有两种方法可以使用 Google Tag Manager 跟踪 lead 事件：
 
-- Thank You Page Tracking (Recommended)
-- Form Submission Tracking
+- 感谢页面跟踪 (推荐)
+- 表单提交跟踪
 
-### Option 1: Thank You Page Tracking (Recommended)
+### 选项 1：感谢页面跟踪 (推荐)
 
-This method tracks leads when users land on a thank-you or success page after completing a form. This approach is more reliable as it's less likely to be blocked by ad blockers and provides better data accuracy.
+此方法在用户完成表单后跳转到感谢或成功页面时跟踪 lead。这种方法更可靠，因为不太可能被广告拦截器拦截，并提供更高的数据准确性。
 
-Create a **Custom HTML** tag with the following code:
+使用以下代码创建一个 **自定义 HTML (Custom HTML)** 代码：
 
 ```html
 <script>
   (function () {
-    // Get query parameters from URL
+    // 从 URL 获取查询参数
     var params = new URLSearchParams(window.location.search);
     var email = params.get("email");
     var name = params.get("name");
 
-    // Get dub_id from cookie using GTM variable
+    // 使用 GTM 变量从 cookie 获取 dub_id
     var clickId = {{Dub ID Cookie}} || "";
 
-    // Only track the lead event if email and clickId are present
+    // 仅在 email 和 clickId 存在时跟踪 lead 事件
     if (email && clickId) {
       dubAnalytics.trackLead({
         eventName: "Sign Up",
@@ -54,29 +54,29 @@ Create a **Custom HTML** tag with the following code:
 </script>
 ```
 
-> **Important**: Make sure to pass along the `email` and `name` query parameters to the thank-you page so that the lead event can be attributed to the correct customer.
+> **重要提示**：确保将 `email` 和 `name` 查询参数传递给感谢页面，以便将 lead 事件归因于正确的客户。
 
-Configure this tag to fire on specific pages by creating a **Page View** trigger with conditions:
+通过创建一个具有以下条件的 **网页浏览 (Page View)** 触发器，将此代码配置为在特定页面上触发：
 
-- Trigger Type: **Page View**
-- This trigger fires on: **Some Page Views**
-- Add conditions like:
-  - **Page URL** contains `/thank-you`
-  - Or **Page Path** equals `/success`
-  - Or whatever URL pattern matches your thank-you pages
+- 触发器类型：**网页浏览 (Page View)**
+- 此触发器启动于：**部分网页浏览 (Some Page Views)**
+- 添加如下条件：
+  - **Page URL** 包含 `/thank-you`
+  - 或 **Page Path** 等于 `/success`
+  - 或任何匹配您感谢页面的 URL 模式
 
-Name this tag "Dub Lead Tracking - Thank You Page" and save it.
+将此代码命名为 "Dub Lead Tracking - Thank You Page" 并保存。
 
-### Option 2: Form Submission Tracking
+### 选项 2：表单提交跟踪
 
-This method tracks leads immediately when users submit forms on your website. Note that this approach may be less reliable due to ad blockers and timing issues.
+此方法在用户提交网站上的表单时立即跟踪 lead。请注意，由于广告拦截器和时间问题，此方法可能不太可靠。
 
-Create a **Custom HTML** tag with the following code:
+使用以下代码创建一个 **自定义 HTML (Custom HTML)** 代码：
 
 ```html
 <script>
   (function () {
-    // Get form data - customize these selectors based on your form
+    // 获取表单数据 - 根据您的表单自定义这些选择器
     var name = document.getElementById("name")
       ? document.getElementById("name").value
       : "";
@@ -84,10 +84,10 @@ Create a **Custom HTML** tag with the following code:
       ? document.getElementById("email").value
       : "";
 
-    // Get dub_id from cookie using GTM variable
+    // 使用 GTM 变量从 cookie 获取 dub_id
     var clickId = {{Dub ID Cookie}} || "";
 
-    // Only track the lead event if email and clickId are present
+    // 仅在 email 和 clickId 存在时跟踪 lead 事件
     if (email && clickId) {
       dubAnalytics.trackLead({
         eventName: "Sign Up",
@@ -101,41 +101,38 @@ Create a **Custom HTML** tag with the following code:
 </script>
 ```
 
-> **Important**: You'll need to customize the DOM selectors
-> (`getElementById('name')`, `getElementById('email')`) to match your actual
-> form field IDs or use different methods to capture the form data based on your
-> website's structure.
+> **重要提示**：您需要自定义 DOM 选择器 (`getElementById('name')`, `getElementById('email')`) 以匹配您实际的表单字段 ID，或根据您的网站结构使用不同的方法来捕捉表单数据。
 
-Configure this tag to fire on **Form Submission** by creating a new trigger:
+通过创建一个新触发器，将此代码配置为在 **表单提交 (Form Submission)** 时触发：
 
-- Trigger Type: **Form Submission**
-- This trigger fires on: **Some Forms** (or **All Forms** if you want to track all form submissions)
-- Add conditions to specify which forms should trigger lead tracking
+- 触发器类型：**表单提交 (Form Submission)**
+- 此触发器启动于：**部分表单 (Some Forms)** (如果您想跟踪所有表单提交，则选择 **所有表单 (All Forms)**)
+- 添加条件以指定哪些表单应触发 lead 跟踪
 
-Name this tag "Dub Lead Tracking - Form Submission" and save it.
+将此代码命名为 "Dub Lead Tracking - Form Submission" 并保存。
 
-## Testing your setup
+## 测试您的设置
 
-To test your GTM setup, you can use the **Preview** mode in Google Tag Manager:
+要测试您的 GTM 设置，您可以使用 Google Tag Manager 中的 **预览 (Preview)** 模式：
 
-1. **Enable Preview Mode**: In your GTM workspace, click the **Preview** button in the top right corner
-2. **Enter your website URL** and click **Connect**
-3. **Test your chosen tracking method**:
-   - **For Option 1 (Thank You Page)**: Navigate to your thank-you page with query parameters (e.g., `?email=test@example.com&name=Test User`)
-   - **For Option 2 (Form Submission)**: Navigate to a page with a form and submit a test form
-4. **Check the GTM debugger** to see if your tags are firing correctly
+1. **启用预览模式**：在您的 GTM 工作区中，点击右上角的 **预览 (Preview)** 按钮
+2. **输入您的网站 URL** 并点击 **连接 (Connect)**
+3. **测试您选择的跟踪方法**：
+   - **对于选项 1 (感谢页面)**：导航到带有查询参数的感谢页面（例如 `?email=test@example.com&name=Test User`）
+   - **对于选项 2 (表单提交)**：导航到带有表单的页面并提交测试表单
+4. **查看 GTM 调试器** 以确认您的代码是否正确触发
 
-### Verify lead tracking
+### 验证 lead 跟踪
 
-You can also verify that leads are being tracked by:
+您还可以通过以下方式验证 lead 是否被跟踪：
 
-1. **Checking your browser's developer console** for any JavaScript errors
-2. **Using the Network tab** to see if requests are being sent to Dub's analytics endpoint
-3. **Viewing your Dub dashboard** to confirm that lead events are appearing in your analytics
+1. **检查浏览器的开发者控制台** 是否有任何 JavaScript 错误
+2. **使用 Network 选项卡** 查看是否正在向 Dub 的分析端点发送请求
+3. **查看您的 Dub 仪表板** 以确认 lead 事件是否出现在您的分析中
 
-### Common troubleshooting tips
+### 常见故障排除提示
 
-- **Tag not firing**: Check that your triggers are configured correctly and that the conditions match your page structure
-- **Missing publishable key**: Ensure you've replaced the placeholder with your actual publishable key
-- **Missing query parameters** (Option 1): Ensure your form redirects to the thank-you page with the required query parameters
-- **Form data not captured** (Option 2): Verify that your DOM selectors match your actual form field IDs or names
+- **代码未触发**：检查您的触发器配置是否正确，以及条件是否与您的页面结构匹配。
+- **缺失可发布密钥 (Publishable key)**：确保您已将占位符替换为实际的可发布密钥。
+- **查询参数缺失** (选项 1)：确保您的表单重定向到带有所需查询参数的感谢页面。
+- **表单数据未捕捉** (选项 2)：验证您的 DOM 选择器是否与实际的表单字段 ID 或名称匹配。

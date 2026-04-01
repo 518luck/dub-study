@@ -1,24 +1,24 @@
-Configure Appwrite to track lead conversion events during the sign up process.
+配置 Appwrite，以便在注册过程中跟踪 lead (潜在客户) 转换事件。
 
-## Step 1
+## 第一步
 
-Head to [Appwrite Cloud](https://apwr.dev/appwrite-dub) and create a new project.
+前往 [Appwrite Cloud](https://apwr.dev/appwrite-dub) 并创建一个新项目。
 
-![New project on Appwrite Cloud](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/appwrite/appwrite-new-project.png)
+![Appwrite Cloud 上的新项目](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/appwrite/appwrite-new-project.png)
 
-Create a new API key with the `sessions.write` scope enabled and save the API key for later use. You can also copy your project ID and endpoint from the project's Settings page.
+创建一个启用 `sessions.write` 作用域的新 API key，并保存该 API key 以备后用。您还可以从项目的设置 (Settings) 页面复制您的项目 ID (Project ID) 和 endpoint (端点)。
 
-![API key in your project on Appwrite Cloud](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/appwrite/appwrite-api-key.png)
+![Appwrite Cloud 项目中的 API key](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/appwrite/appwrite-api-key.png)
 
-Then, in your Next.js app, install the Appwrite Node.js SDK.
+然后，在您的 Next.js 应用中安装 Appwrite Node.js SDK。
 
 ```bash
 npm i node-appwrite
 ```
 
-## Step 2
+## 第二步
 
-Add the following environment variables to your app.
+将以下环境变量添加到您的应用中。
 
 ```bash
 NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
@@ -27,9 +27,9 @@ NEXT_APPWRITE_KEY=<APPWRITE_API_KEY>
 NEXT_DUB_API_KEY=<DUB_API_KEY>
 ```
 
-## Step 3
+## 第三步
 
-Add the `DubAnalytics` component from the `@dub/analytics` package to your app's root layout.
+从 `@dub/analytics` 包中将 `DubAnalytics` 组件添加到应用的根布局 (root layout) 中。
 
 ```javascript
 import type { Metadata } from "next";
@@ -54,9 +54,9 @@ export default function RootLayout({
 }
 ```
 
-## Step 4
+## 第四步
 
-Create the Appwrite Session and Admin client (necessary for SSR apps, as explained in the [Appwrite docs](https://appwrite.io/docs/products/auth/server-side-rendering)). Additionally, create a function to verify user login.
+创建 Appwrite Session 和 Admin client (对于 SSR 应用是必需的，详见 [Appwrite 文档](https://appwrite.io/docs/products/auth/server-side-rendering))。此外，创建一个验证用户登录的函数。
 
 ```javascript
 "use server";
@@ -96,9 +96,9 @@ export async function createAdminClient() {
 }
 ```
 
-## Step 5
+## 第五步
 
-Create the Dub client and send leads to Dub using the `dub.track.lead()` function.
+创建 Dub client，并使用 `dub.track.lead()` 函数将 lead 发送到 Dub。
 
 ```javascript
 import type { Models } from "node-appwrite";
@@ -122,9 +122,9 @@ export function addDubLead(
 }
 ```
 
-## Step 6
+## 第六步
 
-In the `/auth` page, use the Appwrite Admin client to allow users to sign up. Post sign up, check if the `dub_id` cookie is present, send a lead event to Dub if found, and delete the `dub_id` cookie.
+在 `/auth` 页面中，使用 Appwrite Admin client 允许用户注册。在注册后，检查 `dub_id` cookie 是否存在，如果存在则向 Dub 发送 lead 事件，并删除 `dub_id` cookie。
 
 ```javascript
 import { ID } from "node-appwrite";
@@ -136,12 +136,12 @@ import { addDubLead } from "@/lib/server/dub";
 async function signUpWithEmail(formData: any) {
   "use server";
 
-  // Get sign up info from form
+  // 从表单获取注册信息
   const email = formData.get("email");
   const password = formData.get("password");
   const name = formData.get("name");
 
-  // Create account and session using Appwrite
+  // 使用 Appwrite 创建账户和 session
   const { account } = await createAdminClient();
 
   const user = await account.create(ID.unique(), email, password, name);
@@ -154,19 +154,19 @@ async function signUpWithEmail(formData: any) {
     secure: true,
   });
 
-  // Check if Dub ID is present in cookies and track lead if found
+  // 检查 cookies 中是否存在 Dub ID，如果存在则跟踪 lead
   const dub_id = (await cookies()).get("dub_id")?.value;
   if (dub_id) {
     addDubLead(user, dub_id);
     (await cookies()).delete("dub_id");
   }
 
-  // Redirect to success page
+  // 重定向到成功页面
   redirect("/auth/success");
 }
 
 export default async function SignUpPage() {
-  // Verify active user session and redirect to success page if found
+  // 验证活跃的用户 session，如果找到则重定向到成功页面
   const user = await getLoggedInUser();
   if (user) redirect("/auth/success");
 
@@ -195,3 +195,4 @@ export default async function SignUpPage() {
   );
 }
 ```
+

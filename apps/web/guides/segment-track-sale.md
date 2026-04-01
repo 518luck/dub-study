@@ -1,46 +1,46 @@
-Configuring Segment to track sale events when a user purchases your product or service.
+配置 Segment，以便在用户购买您的产品或服务时跟踪销售 (sale) 事件。
 
-If you’ve already set up the Dub (Actions) destination, you can skip the first two steps and jump straight to the **Add Mapping** section.
+如果您已经设置了 Dub (Actions) 目的地，可以跳过前两个步骤，直接跳至 **添加映射** 部分。
 
-## Step 1: Add Dub (Actions) destination
+## 第一步：添加 Dub (Actions) destination (目的地)
 
-Head to [Segment Dub (Actions)](https://app.segment.com/goto-my-workspace/destinations/catalog/actions-dub) and add the destination to your Segment workspace.
+前往 [Segment Dub (Actions)](https://app.segment.com/goto-my-workspace/destinations/catalog/actions-dub) 并将该目的地添加到您的 Segment 工作区。
 
-![Segment Dub (Actions) destination](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-actions.png)
+![Segment Dub (Actions) 目的地](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-actions.png)
 
-## Step 2: Configure Dub API Key
+## 第二步：配置 Dub API Key
 
-In the Dub (Actions) destination settings, fill out the following fields:
+在 Dub (Actions) 目的地设置中，填写以下字段：
 
-- **Name:** Enter a name to help you identify this destination in Segment.
-- **API Key:** Enter your Dub API key. You can find this in the [Dub Dashboard](https://app.dub.co/settings/tokens).
-- **Enable Destination:** Toggle this on to allow Segment to send data to Dub.
+- **Name:** 输入一个名称，帮助您在 Segment 中识别此目的地。
+- **API Key:** 输入您的 Dub API 密钥。您可以在 [Dub 控制面板](https://app.dub.co/settings/tokens) 中找到它。
+- **Enable Destination:** 开启此开关以允许 Segment 向 Dub 发送数据。
 
-Once completed, click **Save Changes**.
+完成后，点击 **Save Changes**。
 
-![Segment Dub (Actions) Basic Settings](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-basic-settings.png)
+![Segment Dub (Actions) 基础设置](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-basic-settings.png)
 
-## Step 3: Add Mapping
+## 第三步：添加 Mapping (映射)
 
-Next, you’ll choose the **Track a sale** action from the list of available actions.
+接下来，您将从可用操作列表中选择 **Track a sale** 操作。
 
-By default, this action is configured to send sale data to Dub when the **Event Name** is **Order Completed**.
+默认情况下，此操作配置为在 **Event Name** 为 **Order Completed** 时向 Dub 发送销售数据。
 
-![Segment Dub (Actions) Mapping](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-track-sale-action.png)
+![Segment Dub (Actions) 映射](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-track-sale-action.png)
 
-Below the selected action, you’ll see the mapping for that action.
+在所选操作下方，您将看到该操作的映射。
 
-![Segment Dub (Actions) Mapping](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-track-sale-mapping.png)
+![Segment Dub (Actions) 映射](https://mintlify.s3.us-west-1.amazonaws.com/dub/images/conversions/segment/segment-track-sale-mapping.png)
 
-You can customize the trigger and mapping to fit the specific needs of your application.
+您可以自定义触发器 (trigger) 和映射，以满足您应用程序的具体需求。
 
-Finally, click **Next** and then **Save and enable** to add the mapping to the destination.
+最后，点击 **Next**，然后点击 **Save and enable** 将映射添加到目的地。
 
-## Step 4: Send sale events to Dub
+## 第四步：向 Dub 发送销售事件
 
-On the server side, you’ll use the `@segment/analytics-node` SDK to send sale events to Segment.
+在服务器端，您将使用 `@segment/analytics-node` SDK 向 Segment 发送销售事件。
 
-Make sure to include relevant properties such as `userId`, `payment_processor`, `order_id`, `currency`, and `revenue` in the payload.
+请确保在 payload 中包含相关的属性，例如 `userId`、`payment_processor`、`order_id`、`currency` 和 `revenue`。
 
 ```javascript
 import { Analytics } from "@segment/analytics-node";
@@ -64,4 +64,4 @@ segment.track({
 });
 ```
 
-Once the event is tracked, Segment will forward the sale data to Dub based on the mappings you’ve configured.
+一旦事件被跟踪，Segment 将根据您配置的映射将销售数据转发给 Dub。
