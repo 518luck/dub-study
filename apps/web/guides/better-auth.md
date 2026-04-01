@@ -1,8 +1,8 @@
-Configure Better Auth to track lead conversion events when a new user signs up.
+配置 Better Auth，以便在有新用户注册时跟踪 lead 转换事件。
 
-## Step 1: Install the @dub/better-auth plugin
+## 第一步：安装 @dub/better-auth 插件
 
-To get started, simply install the [`@dub/better-auth` plugin](https://www.npmjs.com/package/@dub/better-auth) via your preferred package manager:
+首先，通过您偏好的包管理器安装 [`@dub/better-auth` 插件](https://www.npmjs.com/package/@dub/better-auth)：
 
 ```bash
 npm install @dub/better-auth
@@ -11,9 +11,9 @@ pnpm add @dub/better-auth
 bun add @dub/better-auth
 ```
 
-## Step 2: Configure the plugin
+## 第二步：配置插件
 
-Then, add the plugin to your better-auth config file:
+然后，将该插件添加到您的 better-auth 配置文件中：
 
 ```ts auth.ts
 import { dubAnalytics } from "@dub/better-auth";
@@ -30,3 +30,4 @@ export const auth = betterAuth({
   ],
 });
 ```
+

@@ -1,18 +1,18 @@
-This quick start guide will show you how to get started with Dub on your React website.
+本快速入门指南将向您展示如何在您的 React 网站上开始使用 Dub。
 
-### Step 1: Install package
+### 第一步：安装包
 
-Using the package manager of your choice, add the `@dub/analytics` package to your project.
+使用您偏好的包管理器，将 `@dub/analytics` 包添加到您的项目中。
 
 ```bash
 npm install @dub/analytics
 ```
 
-### Step 2: Initialize package in your code
+### 第二步：在代码中初始化包
 
-If you are using a React framework, you can use the `<Analytics />` component to track conversions on your website.
+如果您使用的是 React 框架，可以使用 `<Analytics />` 组件来跟踪网站上的转化。
 
-E.g. if you're using Next.js, you can add the `<Analytics />` component to your root layout component or any other pages where you want to track conversions.
+例如，如果您使用的是 Next.js，可以将 `<Analytics />` 组件添加到根布局 (root layout) 组件或任何其他您想跟踪转化的页面中。
 
 ```jsx
 import { Analytics as DubAnalytics } from '@dub/analytics/react';
@@ -23,10 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh">
       <body>{children}</body>
       <DubAnalytics />
     </html>
   );
 }
 ```
+

@@ -1,20 +1,20 @@
-Dub's API is built on REST principles and is served over HTTPS. To ensure data privacy, unencrypted HTTP is not supported.
+Dub 的 API 基于 REST 原则构建，并通过 HTTPS 协议提供服务。为了确保数据隐私，不支持未加密的 HTTP。
 
-The Base URL for all API endpoints is:
+所有 API 端点 (endpoints) 的基础 URL 为：
 
 ```bash
 https://api.dub.co
 ```
 
-## Authentication
+## 身份验证
 
-Authentication to Dub's API is performed via the Authorization header with a Bearer token. To authenticate, you need to include the Authorization header with the word `Bearer` followed by your API key in your requests like so:
+对 Dub API 的身份验证是通过带有 Bearer 令牌 (token) 的 Authorization 请求头执行的。要进行身份验证，您需要在请求中包含 Authorization 请求头，其值为单词 `Bearer` 后跟您的 API 密钥，如下所示：
 
 ```bash
 Authorization: Bearer dub_xxxxxx
 ```
 
-Here are examples of how to make a request to Dub's API using Node.js:
+以下是使用 Node.js 向 Dub API 发送请求的示例：
 
 ```javascript
 const response = await fetch("https://api.dub.co/links", {
@@ -26,3 +26,4 @@ const response = await fetch("https://api.dub.co/links", {
 
 const data = await response.json();
 ```
+

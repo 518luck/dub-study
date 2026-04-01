@@ -1,12 +1,12 @@
-You can also use Dub's [server-side SDKs](https://dub.co/docs/sdks/overview) or [REST API](https://dub.co/docs/api-reference/introduction) to track a lead event manually.
+您还可以使用 Dub 的 [server-side SDKs](https://dub.co/docs/sdks/overview) 或 [REST API](https://dub.co/docs/api-reference/introduction) 手动跟踪 lead (潜在客户) 事件。
 
-The example below demonstrates how to track a lead using the [Dub TypeScript SDK](https://dub.co/docs/sdks/typescript) in Node.js.
+以下示例演示了如何使用 [Dub TypeScript SDK](https://dub.co/docs/sdks/typescript) 在 Node.js 中跟踪 lead。
 
 ```typescript
 import { Dub } from "dub";
 
 const dub = new Dub({
-  // optional, defaults to the DUB_API_KEY environment variable
+  // 可选，默认为 DUB_API_KEY 环境变量
   token: process.env.DUB_API_KEY,
 });
 
@@ -20,7 +20,7 @@ await dub.track.lead({
 });
 ```
 
-If you want to use the REST API instead, you can refer to the following example:
+如果您想改用 REST API，可以参考以下示例：
 
 ```javascript
 const response = await fetch("https://api.dub.co/track/lead", {
@@ -42,13 +42,13 @@ const response = await fetch("https://api.dub.co/track/lead", {
 const data = await response.json();
 ```
 
-Make sure to include your API key in the Authorization header and pass the relevant lead data in the request body as JSON.
+请确保在 Authorization 请求头中包含您的 API 密钥，并以 JSON 格式在请求正文中传递相关的 lead 数据。
 
 ---
 
-Refer to the [track lead API reference](https://dub.co/docs/api-reference/endpoint/track-lead) for details on available parameters and response formats.
+有关可用参数和响应格式的详细信息，请参阅 [track lead API 参考](https://dub.co/docs/api-reference/endpoint/track-lead)。
 
-Dub also supports server-side SDKs for other languages, including:
+Dub 还支持其他语言的 server-side SDK，包括：
 
 - [Python](https://dub.co/docs/sdks/python)
 - [PHP](https://dub.co/docs/sdks/php)

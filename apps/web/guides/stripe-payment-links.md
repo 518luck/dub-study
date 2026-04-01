@@ -1,28 +1,28 @@
-If you're using [Stripe Payment Links](https://docs.stripe.com/payment-links), simply add a `?dub_client_reference_id=1` query parameter to your Stripe Payment Link when shortening it on Dub.
+如果您使用的是 [Stripe 支付链接 (Payment Links)](https://docs.stripe.com/payment-links)，只需在 Dub 上缩短链接时添加 `?dub_client_reference_id=1` 查询参数即可。
 
-Then, when a user clicks on the shortened link, Dub will automatically append the unique click ID as the `client_reference_id` [query parameter](https://docs.stripe.com/payment-links/url-parameters) to the payment link.
+然后，当用户点击缩短后的链接时，Dub 将自动将唯一的点击 ID 作为 `client_reference_id` [查询参数](https://docs.stripe.com/payment-links/url-parameters) 附加到支付链接中。
 
-![Stripe payment link with Dub click ID](https://assets.dub.co/cms/conversions-payment-links.jpg)
+![带有 Dub 点击 ID 的 Stripe 支付链接](https://assets.dub.co/cms/conversions-payment-links.jpg)
 
-Finally, when the user completes the checkout flow, Dub will automatically track the sale event and update the customer's `externalId` with their Stripe customer ID for future reference.
+最后，当用户完成结账流程时，Dub 将自动跟踪销售事件，并使用其 Stripe 客户 ID 更新客户的 `externalId` 以供将来参考。
 
-Alternatively, if you have a marketing site that you're redirecting your users to first, you can do this instead:
+或者，如果您有一个营销网站且用户首先会被重定向到该网站，您可以按照以下步骤操作：
 
-1. [Install the @dub/analytics client-side SDK](https://dub.co/docs/sdks/client-side/introduction), which automatically detects the `dub_id` in the URL and stores it as a first-party cookie on your site.
-2. Then, retrieve and append the `dub_id` value as the `client_reference_id` parameter to the payment links on your pricing page / CTA button (prefixed with `dub_id_`).
+1. [安装 @dub/analytics 客户端 SDK](https://dub.co/docs/sdks/client-side/introduction)，它会自动检测 URL 中的 `dub_id` 并将其作为第一方 cookie 存储在您的网站上。
+2. 然后，获取 `dub_id` 值并将其作为 `client_reference_id` 参数附加到定价页面/CTA 按钮上的支付链接中（以 `dub_id_` 为前缀）。
 
 ```javascript
 https://buy.stripe.com/xxxxxx?client_reference_id=dub_id_xxxxxxxxxxxxxx
 ```
 
-## What if I'm using Stripe Pricing Tables?
+## 如果我使用的是 Stripe 定价表 (Pricing Tables) 怎么办？
 
-If you're using [Stripe Pricing Tables](https://docs.stripe.com/payments/checkout/pricing-table) – you'd want to pass the Dub click ID as a [`client-reference-id` attribute](https://docs.stripe.com/payments/checkout/pricing-table#handle-fulfillment-with-the-stripe-api) instead:
+如果您使用的是 [Stripe 定价表 (Pricing Tables)](https://docs.stripe.com/payments/checkout/pricing-table) —— 您需要将 Dub 点击 ID 作为 [`client-reference-id` 属性](https://docs.stripe.com/payments/checkout/pricing-table#handle-fulfillment-with-the-stripe-api) 传递：
 
 ```html
 <body>
-  <h1>We offer plans that help any business!</h1>
-  <!-- Paste your embed code script here. -->
+  <h1>我们提供助力任何业务的方案！</h1>
+  <!-- 在此处粘贴您的嵌入代码脚本。 -->
   <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
   <stripe-pricing-table
     pricing-table-id="{{PRICING_TABLE_ID}}"
@@ -32,3 +32,4 @@ If you're using [Stripe Pricing Tables](https://docs.stripe.com/payments/checkou
   </stripe-pricing-table>
 </body>
 ```
+

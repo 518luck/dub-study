@@ -1,9 +1,9 @@
-Follow these steps to add Dub client-side script to your Framer site:
+按照以下步骤将 Dub 客户端脚本添加到您的 Framer 网站：
 
-- Go to your Framer project and open the **Project Settings** menu.
-- Open the **General** tab and scroll down to the **Custom Code** section.
-- Paste the Dub analytics script in the **Start of head tag** section.
-- Click on the **Save** button to save the changes.
+- 前往您的 Framer 项目并打开 **Project Settings** 菜单。
+- 打开 **General** 选项卡并向下滚动到 **Custom Code** 部分。
+- 在 **Start of head tag** 部分粘贴 Dub 分析脚本。
+- 点击 **Save** 按钮以保存更改。
 
 <!-- prettier-ignore -->
 ```html
@@ -12,3 +12,4 @@ Follow these steps to add Dub client-side script to your Framer site:
   src="https://www.dubcdn.com/analytics/script.js"
 ></script>
 ```
+

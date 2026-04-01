@@ -1,12 +1,12 @@
-If you have a custom checkout flow that uses Stripe's `checkout.sessions.create` API, you'd want to associate the [Stripe customer object](https://docs.stripe.com/api/customers/object) with the user's unique ID in your database.
+如果您有使用 Stripe 的 `checkout.sessions.create` API 的自定义结账流程，您会希望将 [Stripe customer 对象](https://docs.stripe.com/api/customers/object) 与数据库中用户的唯一 ID 相关联。
 
-This will allow Dub to automatically listen for purchase events from Stripe and associate them with the original click event (and by extension, the link that the user came from).
+这将允许 Dub 自动监听来自 Stripe 的购买事件，并将其与原始点击事件（以及延伸的用户来源链接）相关联。
 
-Under the hood, Dub records the user as a customer and associates them with the click event that they came from.
+在底层，Dub 会将用户记录为客户，并将其与他们来自的点击事件相关联。
 
-Then, when the user makes a purchase, Dub will automatically associate the checkout session details (invoice amount, currency, etc.) with the customer – and by extension, the original click event.
+然后，当用户进行购买时，Dub 将自动将结账会话详细信息（发票金额、货币等）与客户关联——并由此关联到原始点击事件。
 
-Then, when you [create a checkout session](https://docs.stripe.com/api/checkout/sessions/create), pass your customer's unique user ID in your database as the `dubCustomerExternalId` value in the `metadata` field.
+接着，当您 [创建一个结账会话 (checkout session)](https://docs.stripe.com/api/checkout/sessions/create) 时，请在 `metadata` 字段中将数据库中客户的唯一用户 ID 作为 `dubCustomerExternalId` 值传递。
 
 ```javascript
 import { stripe } from "@/lib/stripe";
@@ -26,9 +26,9 @@ const stripeSession = await stripe.checkout.sessions.create({
   mode: "subscription",
   client_reference_id: user.teamId,
   metadata: {
-    dubCustomerExternalId: user.id, // the unique user ID of the customer in your database
+    dubCustomerExternalId: user.id, // 数据库中客户的唯一用户 ID
   },
 });
 ```
 
-This way, when the customer completes their checkout session, Dub will automatically associate the checkout session details (invoice amount, currency, etc.) with the customer – and by extension, the original click event.
+这样，当客户完成结账会话时，Dub 将自动将结账会话详细信息（发票金额、货币等）与客户关联——并由此关联到原始点击事件。

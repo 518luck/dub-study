@@ -1,12 +1,12 @@
-Configure Supabase to track lead conversion events in the auth callback function.
+配置 Supabase，以便在 auth 回调函数中跟踪 lead 转换事件。
 
-Here's how it works in a nutshell:
+简而言之，其工作原理如下：
 
-1. In the `/api/auth/callback` route, check if:
-   - the `dub_id` cookie is present.
-   - the user is a new sign up (created in the last 10 minutes).
-2. If the `dub_id` cookie is present and the user is a new sign up, send a lead event to Dub using `dub.track.lead`
-3. Delete the `dub_id` cookie.
+1. 在 `/api/auth/callback` 路由中，检查：
+   - `dub_id` cookie 是否存在。
+   - 用户是否为新注册（在过去 10 分钟内创建）。
+2. 如果 `dub_id` cookie 存在且用户是新注册的，则使用 `dub.track.lead` 向 Dub 发送 lead 事件。
+3. 删除 `dub_id` cookie。
 
 ```javascript
 // app/api/auth/callback/route.ts
@@ -19,20 +19,20 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  // if "next" is in param, use it as the redirect URL
+  // 如果参数中有 "next"，则将其用作重定向 URL
   const next = searchParams.get("next") ?? "/";
 
   if (code) {
-    const supabase = createClient(cookies());
+    const supabase = createClient(await cookies());
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
       const { user } = data;
-      const dub_id = cookies().get("dub_id")?.value;
-      // if the user is created in the last 10 minutes, consider them new
+      const dub_id = (await cookies()).get("dub_id")?.value;
+      // 如果用户是在过去 10 分钟内创建的，则视为新用户
       const isNewUser =
         new Date(user.created_at) > new Date(Date.now() - 10 * 60 * 1000);
-      // if the user is new and has a dub_id cookie, track the lead
+      // 如果是新用户且有 dub_id cookie，则跟踪 lead
 
       if (dub_id && isNewUser) {
         waitUntil(
@@ -46,15 +46,16 @@ export async function GET(request: Request) {
           }),
         );
 
-        // delete the clickId cookie
-        cookies().delete("dub_id");
+        // 删除 dub_id cookie
+        (await cookies()).delete("dub_id");
       }
 
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  // return the user to an error page with instructions
+  // 将用户返回到带有说明的错误页面
   return NextResponse.redirect(`${origin}/auth/auth-code-error`);
 }
 ```
+
