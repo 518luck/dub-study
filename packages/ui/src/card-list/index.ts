@@ -1,6 +1,7 @@
 import { CardList as CardListComponent, CardListContext } from "./card-list";
 import { CardContext, CardListCard } from "./card-list-card";
 
+// #region “组件族命名空间”
 // 这里用的是一种常见的工程化组织方式：
 // “组件族命名空间” / compound components / namespaced API。
 //
@@ -31,6 +32,7 @@ import { CardContext, CardListCard } from "./card-list-card";
 // CardList.Context = CardListContext
 // CardList.Card = CardListCard
 // CardList.Card.Context = CardContext
+// #endregion
 const CardList = Object.assign(CardListComponent, {
   Card: Object.assign(CardListCard, {
     Context: CardContext,
