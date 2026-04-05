@@ -27,11 +27,39 @@ import { LinkTests } from "./link-tests";
 import { LinkTitleColumn } from "./link-title-column";
 import { ResponseLink } from "./links-container";
 
+// #region 学习笔记：createContext<类型>(默认值)
+// 这句代码里其实同时写了“类型”和“值”：
+// - 尖括号 <...> 里面的是 TypeScript 类型
+// - 圆括号 (...) 里面的是运行时默认值
+//
+// 这里的类型表示：
+// LinkCardContext 里存放的内容要么是：
+// {
+//   showTests: boolean;
+//   setShowTests: Dispatch<SetStateAction<boolean>>;
+// }
+// 要么是 null
+//
+// 其中：
+// - showTests 表示当前这张 LinkCard 是否展开测试区域
+// - setShowTests 是 useState 返回的 setter 函数类型
+// - Dispatch<SetStateAction<boolean>> 可以近似理解成：
+//   (value: boolean | ((prev: boolean) => boolean)) => void
+//
+// 所以它支持两种调用：
+// setShowTests(true)
+// setShowTests((prev) => !prev)
+//
+// 这里默认值写成 null，表示：
+// 这个 Context 不应该脱离 LinkCardContext.Provider 单独使用。
+// 后面 useLinkCardContext() 里会检查，如果没包在 Provider 里就直接报错。
+// #endregion
 export const LinkCardContext = createContext<{
   showTests: boolean;
   setShowTests: Dispatch<SetStateAction<boolean>>;
 } | null>(null);
 
+// 不知道这个干什么用的
 export function useLinkCardContext() {
   const context = useContext(LinkCardContext);
   if (!context)
@@ -51,7 +79,7 @@ export const LinkCard = memo(({ link }: { link: ResponseLink }) => {
   );
 });
 
-// 用memo包裹,相同的数据只会渲染一次
+//  memo 是 React 提供的一个 性能优化工具，用来让组件在 props 没变化时跳过重新渲染。
 const LinkCardInner = memo(({ link }: { link: ResponseLink }) => {
   //useContext 这是 React 的 Hook，用来读取“上下文”。
   // 组件树上层提供的一组共享数据，下层组件可以直接拿，不用一层层 props 往下传。

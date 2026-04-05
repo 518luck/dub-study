@@ -1,4 +1,5 @@
 import { cn } from "@dub/utils";
+//   VariantProps：用来从 cva 定义里自动推导 props 类型
 import { VariantProps, cva } from "class-variance-authority";
 import { PropsWithChildren, createContext } from "react";
 
@@ -47,15 +48,27 @@ import { PropsWithChildren, createContext } from "react";
 // 4. 一个简单记忆方法
 // - PropsWithChildren：解决“这个组件能不能包 children”的类型表达问题。
 // - createContext：解决“这组组件之间怎么共享数据”的运行时通信问题。
+//
 // #endregion
+
 const cardListVariants = cva(
+  // 学习笔记：cva
+  // - cva 是 class-variance-authority 提供的工具函数。
+  // - 它不是组件，也不是 Hook，本质上是“根据变体参数生成 className 的函数工厂”。
+  // - 第一个参数通常是基础 class：无论什么状态都默认带上的样式。
   "group/card-list w-full flex flex-col transition-[gap,opacity] min-w-0",
   {
+    // 第二个参数通常是配置对象。
+    // 最常见的是 variants：定义“某个变体值 -> 应该追加哪些 class”。
     variants: {
+      // 这里定义了一个变体维度，名字叫 variant。
+      // 调用时可以传：cardListVariants({ variant: "compact" })
       variant: {
         compact: "gap-0",
         loose: "gap-4",
       },
+      // 这里定义了另一个变体维度，名字叫 loading。
+      // 调用时如果传 loading: true，就会额外加上 opacity-50。
       loading: {
         true: "opacity-50",
       },
