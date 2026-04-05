@@ -43,13 +43,26 @@ export default function WorkspaceLinksClient() {
   const { folderId } = useCurrentFolderId();
 
   return (
+    // PageContentWithSidePanel
+    // 含义：一个“页面主体 + 侧边栏”的页面壳组件
+    // 作用：把这个页面按“标题区 / 控制区 / 主体区 / 侧边栏”组织起来
     <PageContentWithSidePanel
+      // title 是一个“槽位”
+      // 槽位可以理解成：这个位置在布局里的身份已经固定为“标题区”
+      // 这里放进去的不是普通文本，而是 FolderDropdown
+      // 说明这个页面顶部标题不是静态字符串，而是一个可交互的文件夹切换器
       title={
         <div className="-ml-2">
           <FolderDropdown hideFolderIcon={true} />
         </div>
       }
+      // controls 也是一个槽位
+      // 它代表页面顶部的“控制区 / 工具栏”
+      // 当前页面的过滤、显示、搜索等控制逻辑，大概率都封装在 WorkspaceLinksPageControls 里
       controls={<WorkspaceLinksPageControls />}
+      // sidePanel 是“右侧边栏槽位”
+      // 这里不是一直显示，而是条件显示
+      // 当 folderId 存在时，才渲染右侧 Folder 信息面板
       sidePanel={
         folderId
           ? {
@@ -60,7 +73,19 @@ export default function WorkspaceLinksClient() {
           : undefined
       }
     >
+      {/* 
+      LinksDisplayProvider
+      Provider 结尾的组件通常可以先理解成“上下文提供者”
+      它的职责不是直接渲染页面，而是给下面的组件提供共享状态/配置
+      这里很可能是在管理 links 的显示方式，比如 card / row、排序等
+    */}
       <LinksDisplayProvider>
+        {/* 
+        WorkspaceLinks
+        这是页面主体内容区真正的核心组件
+        links 列表、空状态（No links yet）、链接卡片等内容
+        大概率都在这个组件或它的下游组件里
+      */}
         <WorkspaceLinks />
       </LinksDisplayProvider>
     </PageContentWithSidePanel>
@@ -143,11 +168,28 @@ function WorkspaceLinks() {
     dotLinkOfferDismissed,
   ]);
 
+  // 这个组件是 /acme/links 页面主体区的“总装配器”
+  // 它自己不直接渲染 link 列表细节，而是负责：
+  // 1. 组装顶部控制区
+  // 2. 挂载弹窗
+  // 3. 把真正的列表渲染交给 LinksContainer
+
+  // router / searchParams：处理跳转和 URL 参数
+  // useWorkspace / useLinks：拿当前 workspace 和 links 数据
+  // useLinkBuilder / useAddEditTagModal：挂载创建链接和标签相关弹窗
+  // useLinkFilters：管理筛选条件
+  // useFolderPermissions / useCheckFolderPermission：控制是否允许创建 link
   return (
     <>
+      {/* 页面相关弹窗和交互层 */}
+      {/* Modal 几乎直接说明：这是个弹窗组件 */}
       <DotLinkOfferModal />
+      {/* 但 Builder 这种名字在业务里常常表示“构建器/编辑器/表单容器”
+        结合这个页面是 links 页面，很容易推断它和“创建/编辑链接”有关 */}
       <LinkBuilder />
       <AddEditTagModal />
+
+      {/* 页面顶部控制区 */}
       <div className="flex w-full items-center">
         <PageWidthWrapper className="flex flex-col gap-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -254,6 +296,7 @@ function WorkspaceLinks() {
         </PageWidthWrapper>
       </div>
 
+      {/* 页面主体内容区：真正的 links 列表与空状态 */}
       <div className="mt-3">
         <LinksContainer
           CreateLinkButton={canCreateLinks ? CreateLinkButton : () => <></>}
