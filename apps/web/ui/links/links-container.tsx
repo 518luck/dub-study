@@ -87,6 +87,7 @@ function LinksList({
   error?: unknown;
   compact: boolean;
 }) {
+  // 读取当前 URL 里的查询参数（query params）
   const searchParams = useSearchParams();
   const { isMegaWorkspace } = useWorkspace();
 
@@ -130,6 +131,7 @@ function LinksList({
           </CardList>
         ) : (
           <AnimatedEmptyState
+            // 是否过滤
             title={isFiltered ? "No links found" : "No links yet"}
             description={
               isFiltered
