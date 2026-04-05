@@ -39,16 +39,22 @@ export function useLinkCardContext() {
   return context;
 }
 
+// 这个竟然是一个服务器组件,而不是浏览器组件
 export const LinkCard = memo(({ link }: { link: ResponseLink }) => {
   const [showTests, setShowTests] = useState(false);
   return (
+    //我好像之前就见到过这个provider,但是一直没有深入,只把他当作一个没有ui只用来背后提供数据的,不知道现在应不应该深入
     <LinkCardContext.Provider value={{ showTests, setShowTests }}>
+      {/* 这个是真实渲染的,但是不理解为什么分开写 */}
       <LinkCardInner link={link} />
     </LinkCardContext.Provider>
   );
 });
 
+// 用memo包裹,相同的数据只会渲染一次
 const LinkCardInner = memo(({ link }: { link: ResponseLink }) => {
+  //useContext 这是 React 的 Hook，用来读取“上下文”。
+  // 组件树上层提供的一组共享数据，下层组件可以直接拿，不用一层层 props 往下传。
   const { variant, loading } = useContext(CardList.Context);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -85,11 +91,12 @@ const LinkCardInner = memo(({ link }: { link: ResponseLink }) => {
 
   return (
     <>
+      {/* 一个ui组件 */}
       <CardList.Card
         key={link.id}
-        outerClassName="overflow-hidden"
-        innerClassName="p-0"
-        {...useClickHandlers(editUrl, router)}
+        outerClassName="overflow-hidden" // outer外部的,可能说明的是最外层的css
+        innerClassName="p-0" // inner内部的,可能说明的是内部的css
+        {...useClickHandlers(editUrl, router)} // 从其他地方传过来一个hooks 而且是从ui传递的不理解,还没有深入研究
         {...(variant === "loose" &&
           showFolderIcon && {
             banner: (
