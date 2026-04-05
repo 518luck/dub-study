@@ -116,7 +116,7 @@ function LinksList({
           // Cards
           <CardList variant={compact ? "compact" : "loose"} loading={loading}>
             {links?.length
-              ? // Link cards
+              ? // 如果这个links?.length存在的话那么就渲染LinkCard组件
                 links.map((link) => <LinkCard key={link.id} link={link} />)
               : // Loading placeholder cards
                 Array.from({ length: 12 }).map((_, idx) => (
