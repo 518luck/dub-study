@@ -54,7 +54,7 @@ type LinkBuilderModalProps = {
   setShowLinkBuilder: Dispatch<SetStateAction<boolean>>;
   homepageDemo?: boolean;
 };
-
+// 感觉嵌套好多层啊
 export function LinkBuilder(props: LinkBuilderProps & LinkBuilderModalProps) {
   return props.showLinkBuilder ? <LinkBuilderOuter {...props} /> : null;
 }
@@ -324,6 +324,16 @@ export function CreateLinkButton({
   );
 }
 
+// useLinkBuilder() 这种 Hook：
+// - 只能在 React 组件或其他 Hook 里调用
+// - 不能在普通 if / for / 普通函数里乱调
+// - 它通常负责组合 React 状态和逻辑
+// Hook 只能在函数组件或自定义 Hook 里调用。
+
+// ### 普通函数
+// - 能复用逻辑
+// - 但不属于 React 的 Hook 体系
+// - 不能随便调用 useState/useEffect/useContext
 export function useLinkBuilder({
   props,
   duplicateProps,
@@ -334,8 +344,11 @@ export function useLinkBuilder({
   homepageDemo?: boolean;
 } = {}) {
   const workspace = useWorkspace();
+  // 1. 在内部维护弹窗开关状态
   const [showLinkBuilder, setShowLinkBuilder] = useState(false);
 
+  // useCallback 缓存的是对象里的函数成员
+  // 缓存一个函数本身，让它在依赖不变时保持同一个函数引用。
   const LinkBuilderCallback = useCallback(() => {
     return (
       <LinkBuilder
@@ -350,6 +363,7 @@ export function useLinkBuilder({
     );
   }, [showLinkBuilder]);
 
+  // 返回一个已经绑好打开逻辑的按钮组件
   const CreateLinkButtonCallback = useCallback(
     (props?: CreateLinkButtonProps) => {
       return (
@@ -359,6 +373,8 @@ export function useLinkBuilder({
     [],
   );
 
+  // useMemo 缓存的是返回对象
+  // 返回一个对象，并且用 useMemo 把这个对象记住，只有依赖变化时才重新创建。
   return useMemo(
     () => ({
       showLinkBuilder,

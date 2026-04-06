@@ -93,6 +93,32 @@ export default function WorkspaceLinksClient() {
 }
 
 export function WorkspaceLinksPageControls() {
+  // #region useLinkBuilder 学习笔记
+  // 这个 hook 不只是返回数据，还返回“可直接渲染的组件”。
+  // 它把“创建链接”这套交互封装起来了，包括：
+  // 1. 弹窗是否打开的状态
+  // 2. 弹窗本体 LinkBuilder
+  // 3. 打开弹窗的按钮 CreateLinkButton
+  //
+  // 这样页面调用时只需要：
+  // const { LinkBuilder, CreateLinkButton } = useLinkBuilder();
+  //
+  // 然后直接渲染：
+  // <LinkBuilder />
+  // <CreateLinkButton />
+  //
+  // 而不需要自己重复写：
+  // - useState 管理弹窗开关
+  // - onClick 打开弹窗
+  // - 把 show / setShow 手动传给弹窗
+  //
+  // 这里的知识点包括：
+  // - 自定义 Hook
+  // - useState 管理弹窗开关
+  // - useCallback 缓存返回的函数组件
+  // - useMemo 缓存最终返回对象
+  // - hook 返回“组件能力”而不只是普通数据
+  // #endregion
   const { LinkBuilder, CreateLinkButton } = useLinkBuilder();
 
   return (
