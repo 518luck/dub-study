@@ -1,3 +1,5 @@
+//  封装一个“用户 onboarding 步骤缓存器”，把用户当前 onboarding 进度临时存到Redis 里。
+
 import { OnboardingStep } from "@/lib/onboarding/types";
 import { redis } from "@/lib/upstash";
 

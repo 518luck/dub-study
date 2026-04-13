@@ -40,6 +40,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 
 export default function WorkspaceLinksClient() {
+  // 获取当前页面正在查看的文件夹ID
   const { folderId } = useCurrentFolderId();
 
   return (
