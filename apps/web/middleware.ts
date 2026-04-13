@@ -18,8 +18,15 @@ import { PartnersMiddleware } from "./lib/middleware/partners";
 import { parse } from "./lib/middleware/utils/parse";
 import { supportedWellKnownFiles } from "./lib/well-known";
 
+/**
+ * 这是 Next.js Middleware 的配置对象，用来告诉 Next：
+ * - 这个中间件运行在什么环境
+ * - 它要拦截哪些请求路径
+ */
 export const config = {
+  //这个 middleware 运行在 Node.js runtime 上。
   runtime: "nodejs",
+  //哪些请求路径应该进入这个 middleware。
   matcher: [
     /*
      * Match all paths except for:
@@ -32,11 +39,16 @@ export const config = {
   ],
 };
 
+// 导出一个默认的异步函数，名字叫 middleware，Next.js 会把它当成中间件入口。
 export default async function middleware(req: NextRequest, ev: NextFetchEvent) {
+  // ev: NextFetchEvent  中间件运行时事件对象。   让一些异步任务在后台继续执行，不阻塞主响应。
   const { domain, path, key, fullKey } = parse(req);
 
   // Axiom logging
+  // ransformMiddlewareRequest(req) 就是在把原始请求 req 变成这组日志参数
   logger.info(...transformMiddlewareRequest(req));
+  //  把一个异步任务挂到后台去继续执行，即使主响应流程已经准备结束，也让它继续 跑完。
+  // 是 middleware 的事件对象 NextFetchEvent
   ev.waitUntil(logger.flush());
 
   // for App

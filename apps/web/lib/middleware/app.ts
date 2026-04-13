@@ -13,13 +13,18 @@ import { isTopLevelSettingsRedirect } from "./utils/is-top-level-settings-redire
 import { parse } from "./utils/parse";
 import { WorkspacesMiddleware } from "./workspaces";
 
+//  处理 app 站点请求的“入口分流、登录校验、onboarding 重定向、默认工作区跳转，以及最终 rewrite 到 app.dub.co 路由目录”。
 export async function AppMiddleware(req: NextRequest) {
+  //path, // 当前请求的路径部分，不包含 query，例如 /acme/links
+  //fullPath, // 完整的路径部分，包含 query，例如 /acme/links?sort=name
+  //searchParamsString, // 查询参数部分，例如 ?sort=name
   const { path, fullPath, searchParamsString } = parse(req);
 
   if (path.startsWith("/embed")) {
     return EmbedMiddleware(req);
   }
 
+  // 尝试从 cookie 中获取用户。
   const user = await getUserViaToken(req);
 
   // if there's no user and the path isn't /login or /register, redirect to /login
@@ -33,7 +38,11 @@ export async function AppMiddleware(req: NextRequest) {
     !path.startsWith("/share/") &&
     !path.startsWith("/deeplink/")
   ) {
+    // 重定向到登录页。
     return NextResponse.redirect(
+      //   如果用户未登录，就把他送到登录页；如果他本来想访问的是别的页面，就把原目
+      //  标地址塞进 next 参数，方便登录后跳回来。
+      // 只要你把“一个 URL/路径”当作“另一个 URL 的参数值”来传，通常就必须编码。使用encodeURIComponent
       new URL(
         `/login${path === "/" ? "" : `?next=${encodeURIComponent(fullPath)}`}`,
         req.url,
@@ -55,8 +64,10 @@ export async function AppMiddleware(req: NextRequest) {
         - User has not completed the onboarding flow
       */
     } else if (
+      //用户创建时间 > 当前时间 - 24小时
       new Date(user.createdAt).getTime() >
         Date.now() - ONBOARDING_WINDOW_SECONDS * 1000 &&
+      // onboarding (入职培训)   account (账户)  some(只要有一个满足就返回true)
       !["/onboarding", "/account"].some((p) => path.startsWith(p)) &&
       !(await getDefaultWorkspace(user)) &&
       !(await hasPendingInvites({ req, user })) &&
