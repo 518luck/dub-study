@@ -3,6 +3,7 @@ export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Dub";
 export const SHORT_DOMAIN =
   process.env.NEXT_PUBLIC_APP_SHORT_DOMAIN || "dub.sh";
 
+// set表示创建一个集合,去重,快速判断某个值在不再里面
 export const APP_HOSTNAMES = new Set([
   `app.${process.env.NEXT_PUBLIC_APP_DOMAIN}`,
   `preview.${process.env.NEXT_PUBLIC_APP_DOMAIN}`,
