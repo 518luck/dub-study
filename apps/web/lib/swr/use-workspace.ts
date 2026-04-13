@@ -26,7 +26,7 @@ export default function useWorkspace({
     slug = searchParams.get("slug") || searchParams.get("workspace");
   }
 
-  // 核心骨架
+  // 核心骨架 // 这个是swr的固定写法
   const {
     data: workspace,
     error,
@@ -58,6 +58,7 @@ export default function useWorkspace({
     isMegaWorkspace:
       workspace && workspace.totalLinks >= MEGA_WORKSPACE_LINKS_LIMIT,
     error,
+    // 数据中提取当前用户的默认文件夹 ID：
     defaultFolderId: workspace?.users && workspace.users[0].defaultFolderId,
     mutate,
     loading: slug && !workspace && !error ? true : false,

@@ -290,6 +290,7 @@ export type WorkspaceWithUsers = Omit<WorkspaceProps, "domains">;
 
 export type WorkspaceUserProps = z.infer<typeof workspaceUserSchema>;
 
+//来表达这种“对象契约”
 export interface UserProps {
   id: string;
   name: string;
