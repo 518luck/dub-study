@@ -61,6 +61,7 @@ export default function useWorkspace({
     // 数据中提取当前用户的默认文件夹 ID：
     defaultFolderId: workspace?.users && workspace.users[0].defaultFolderId,
     mutate,
+    //  只有当当前 URL 里已经有 workspace 的 slug，并且数据还没回来、也没报错时，才显示为 loading。
     loading: slug && !workspace && !error ? true : false,
   };
 }
