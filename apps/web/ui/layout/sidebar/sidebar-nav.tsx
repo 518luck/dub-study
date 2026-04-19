@@ -82,15 +82,16 @@ const SIDEBAR_WIDTH = 304;
 const SIDEBAR_GROUPS_WIDTH = 64;
 const SIDEBAR_AREAS_WIDTH = SIDEBAR_WIDTH - SIDEBAR_GROUPS_WIDTH;
 
+// sidebar = 侧边栏 | nav = 导航
 export function SidebarNav<T extends Record<any, any>>({
-  groups,
-  areas,
-  currentArea,
-  data,
-  toolContent,
-  newsContent,
-  switcher,
-  bottom,
+  groups, // 组
+  areas, // 区域
+  currentArea, // 当前区域
+  data, // 数据
+  toolContent, // 工具内容
+  newsContent, // 新闻内容
+  switcher, // 切换器
+  bottom, // 底部
 }: {
   groups: SidebarNavGroups<T>;
   areas: SidebarNavAreas<T>;
@@ -116,7 +117,9 @@ export function SidebarNav<T extends Record<any, any>>({
     >
       <ClientOnly className="size-full">
         <nav className="grid size-full grid-cols-[var(--sidebar-groups-width)_1fr]">
+          {/* 左侧主导航区 */}
           <div className="flex flex-col items-center justify-between">
+            {/* 左侧顶部 */}
             <div className="flex flex-col items-center p-2">
               <div className="pb-1 pt-2">
                 <Link
@@ -131,11 +134,14 @@ export function SidebarNav<T extends Record<any, any>>({
                 <div className="flex flex-col gap-3">
                   {switcher}
                   {groups(data).map((group) => (
-                    <NavGroupItem key={group.name} group={group} />
+                    <>
+                      <NavGroupItem key={group.name} group={group} />
+                    </>
                   ))}
                 </div>
               )}
             </div>
+            {/* 左侧底部 */}
             <div className="flex flex-col items-center gap-3 py-3">
               <Suspense fallback={null}>{toolContent}</Suspense>
               <div className="flex size-12 items-center justify-center">
@@ -143,6 +149,7 @@ export function SidebarNav<T extends Record<any, any>>({
               </div>
             </div>
           </div>
+          {/* 右侧区域内容区 */}
           <div
             className={cn(
               "size-full overflow-hidden py-2 pr-2 transition-opacity duration-300",
@@ -162,7 +169,8 @@ export function SidebarNav<T extends Record<any, any>>({
     </div>
   );
 }
-
+// TODO : AI最后一句话  接下来在 sidebar-nav.tsx 里，你下一步最值得看的就是哪一个组件。我准备按照顺序读
+// areas = 区域 | panel = 面板
 function SidebarAreasPanel<T extends Record<any, any>>({
   areas,
   data,
@@ -301,6 +309,7 @@ function SidebarAreasPanel<T extends Record<any, any>>({
   );
 }
 
+// tooltip = 工具提示 | group = 分组 | nav = 导航
 export function NavGroupTooltip({
   name,
   description,
@@ -353,6 +362,7 @@ export function NavGroupTooltip({
   );
 }
 
+// item = 项目
 function NavGroupItem({
   group: {
     name,

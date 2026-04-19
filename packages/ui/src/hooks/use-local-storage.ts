@@ -9,6 +9,7 @@ function getItemFromLocalStorage(key: string) {
   return null;
 }
 
+//用来在浏览器中读写 localStorage，并且在组件每次渲染时自动同步最新值。如果不是浏览器环境，就返回 null。
 export function useLocalStorage<T>(
   key: string,
   initialValue: T,
@@ -23,6 +24,7 @@ export function useLocalStorage<T>(
     if (item) setStoredValue(item);
   }, [key]);
 
+  //“更新 React 状态，同时把这个值保存到浏览器的 localStorage 里。”
   const setValue = (value: T) => {
     // Save state
     setStoredValue(value);

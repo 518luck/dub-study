@@ -14,7 +14,7 @@ export function useUpgradeBannerVisible() {
   const needsUpgrade = exceededEvents || exceededLinks || exceededPayouts;
   return needsUpgrade || !!paymentFailedAt;
 }
-
+// 这个文件负责“顶部升级/付款告警横幅”。
 export function UpgradeBanner() {
   const { slug, exceededEvents, exceededLinks, exceededPayouts } =
     useWorkspace();

@@ -3,6 +3,7 @@ import { WorkspaceProps } from "@/lib/types";
 import { redis } from "@/lib/upstash";
 import { after } from "next/server";
 
+// 判断某个 workspace 默认应该进入哪个产品页面。
 export const getWorkspaceProduct = async (workspaceSlug: string) => {
   try {
     let workspaceProduct = await redis.get<"program" | "links">(
@@ -12,11 +13,13 @@ export const getWorkspaceProduct = async (workspaceSlug: string) => {
       return workspaceProduct;
     }
 
+    //  去数据库里查：slug 等于 workspaceSlug 的那个工作区。
     const { rows } =
       (await conn.execute(`SELECT * FROM Project WHERE slug = ?`, [
         workspaceSlug,
       ])) || {};
 
+    //如果数据库查到了工作区记录，就取第一条当作 workspace；如果没查到，就设为 null。
     const workspace =
       rows && Array.isArray(rows) && rows.length > 0
         ? (rows[0] as WorkspaceProps)

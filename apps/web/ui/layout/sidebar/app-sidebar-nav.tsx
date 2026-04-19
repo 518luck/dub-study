@@ -604,32 +604,33 @@ export function AppSidebarNav({
 
   return (
     <SidebarNav
-      groups={NAV_GROUPS}
-      areas={NAV_AREAS}
-      currentArea={currentArea}
+      groups={NAV_GROUPS} // 分组
+      areas={NAV_AREAS} // 区域-导航区域
+      currentArea={currentArea} // 当前区域
+      // 数据
       data={{
-        slug: slug || "",
-        pathname,
+        slug: slug || "", // slug
+        pathname, // 路径名称
         queryString: getQueryString(undefined, {
           include: ["folderId"],
-        }),
-        session: session || undefined,
-        showNews: true,
-        defaultProgramId: defaultProgramId || undefined,
-        pendingPayoutsCount,
-        applicationsCount,
-        submittedBountiesCount,
-        unreadMessagesCount,
-        pendingFraudEventsCount,
-        pendingReferralsCount,
+        }), // 需要保留的查询参数
+        session: session || undefined, // session
+        showNews: true, // 显示名称
+        defaultProgramId: defaultProgramId || undefined, // 默认 program id
+        pendingPayoutsCount, // 待处理付款数量
+        applicationsCount, // 应用的数量
+        submittedBountiesCount, // 已经提交数量
+        unreadMessagesCount, // 未读消息数量
+        pendingFraudEventsCount, // 还没有处理的欺骗事件
+        pendingReferralsCount, // 待处理推荐数量
         showConversionGuides:
-          canTrackConversions && pathname.startsWith(`/${slug}/links`),
+          canTrackConversions && pathname.startsWith(`/${slug}/links`), // 是否显示转化引导
         partnerNetworkEnabled:
-          program && program.partnerNetworkEnabledAt !== null,
+          program && program.partnerNetworkEnabledAt !== null, // 是否启用 partner network
       }}
-      toolContent={toolContent}
-      newsContent={plan && (plan === "free" ? <SidebarUsage /> : newsContent)}
-      switcher={<WorkspaceDropdown />}
+      toolContent={toolContent} // 工具区内容
+      newsContent={plan && (plan === "free" ? <SidebarUsage /> : newsContent)} // 底部新闻/用量区域
+      switcher={<WorkspaceDropdown />} // 工作区切换器
     />
   );
 }

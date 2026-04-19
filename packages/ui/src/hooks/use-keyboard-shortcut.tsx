@@ -11,15 +11,17 @@ import {
 } from "react";
 
 type KeyboardShortcutListener = {
-  id: string;
-  key: string | string[];
-  enabled?: boolean;
-  priority?: number;
-  modal?: boolean;
-  sheet?: boolean;
+  id: string; // 当前快捷键监听器的唯一标识
+  key: string | string[]; // 需要监听的快捷键，可以是单个，也可以是一组
+  enabled?: boolean; // 当前监听器是否启用
+  priority?: number; // 多个监听器同时命中时的优先级，值越大越优先
+  modal?: boolean; // 是否只在 modal 打开时生效
+  sheet?: boolean; // 是否只在 sheet / drawer 打开时生效
 };
 
+// 1. 创建 Context
 export const KeyboardShortcutContext = createContext<{
+  // 定义了该 Context 提供的数据结构
   listeners: KeyboardShortcutListener[];
   setListeners: Dispatch<SetStateAction<KeyboardShortcutListener[]>>;
 }>({
@@ -27,6 +29,7 @@ export const KeyboardShortcutContext = createContext<{
   setListeners: () => {},
 });
 
+// 给下面整棵组件树提供一个“快捷键监听器列表”的共享状态。
 export function KeyboardShortcutProvider({
   children,
 }: {

@@ -84,6 +84,8 @@ export function MainNav({
           <Sidebar toolContent={toolContent} newsContent={newsContent} />
         </div>
       </div>
+
+      {/* 分栏主要内容区域 */}
       <div
         className={cn(
           "bg-neutral-200 pb-[var(--page-bottom-margin)] pt-[var(--page-top-margin)] [--page-bottom-margin:0px] [--page-top-margin:0px] md:pb-2 md:pr-2 md:[--page-bottom-margin:0.5rem] md:[--page-top-margin:0.5rem]",

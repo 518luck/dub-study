@@ -17,7 +17,7 @@ import {
   Dispatch,
   ReactNode,
   SetStateAction,
-  Suspense,
+  Suspense, // React 提供的一个“等待边界”组件。
   createContext,
   useEffect,
   useMemo,
@@ -68,6 +68,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
 
 function ModalProviderClient({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
+  //  从 URL 查询参数里读取 newLink 和 newLinkDomain，如果 newLink 是一个合法 URL，就整理 成一个对象返回；否则返回 null。
   const newLinkValues = useMemo(() => {
     const newLink = searchParams.get("newLink");
     if (newLink && getUrlFromString(newLink)) {

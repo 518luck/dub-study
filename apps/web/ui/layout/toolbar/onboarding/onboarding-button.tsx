@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { forwardRef, HTMLAttributes, Ref, useMemo, useState } from "react";
 
+//如果当前不是手机端，并且用户没有把 onboarding 永久隐藏，就显示OnboardingButtonInner；否则什么都不渲染。
 export function OnboardingButton() {
   const { isMobile } = useMediaQuery();
   const [hideForever, setHideForever] = useLocalStorage(

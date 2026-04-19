@@ -28,6 +28,7 @@ export async function AppMiddleware(req: NextRequest) {
   const user = await getUserViaToken(req);
 
   // if there's no user and the path isn't /login or /register, redirect to /login
+  // 用户如果没有登陆,就不让他访问后台页面，而是把他重定向到登录页。
   if (
     !user &&
     path !== "/login" &&
@@ -55,13 +56,12 @@ export async function AppMiddleware(req: NextRequest) {
     if (path === "/new") {
       return NewLinkMiddleware(req, user);
 
-      /* Onboarding redirects
-
-        - User was created less than a day ago
-        - User is not invited to a workspace (redirect straight to the workspace)
-        - The path does not start with /onboarding
-        - User doesn't have a default workspace
-        - User has not completed the onboarding flow
+      /*新手引导重定向*
+            用户创建时间少于一天
+            用户未被邀请加入任何工作空间（直接重定向至工作空间流程）
+            当前路径不是以 /onboarding 开头
+            用户没有默认的工作空间
+            用户尚未完成新手引导流程
       */
     } else if (
       //用户创建时间 > 当前时间 - 24小时
@@ -69,19 +69,26 @@ export async function AppMiddleware(req: NextRequest) {
         Date.now() - ONBOARDING_WINDOW_SECONDS * 1000 &&
       // onboarding (入职培训)   account (账户)  some(只要有一个满足就返回true)
       !["/onboarding", "/account"].some((p) => path.startsWith(p)) &&
+      //并且当前用户还没有默认 workspace。
       !(await getDefaultWorkspace(user)) &&
+      //并且这个用户当前没有待处理的邀请。
       !(await hasPendingInvites({ req, user })) &&
+      // “这个用户的 onboarding 是否还没完成？”
       (await onboardingStepCache.get({ userId: user.id })) !== "completed"
     ) {
       let step = await onboardingStepCache.get({ userId: user.id });
       if (!step) {
+        //如果当前用户还没有记录任何 onboarding 步骤，就把他重定向到 onboarding 入口页。
         return NextResponse.redirect(new URL("/onboarding", req.url));
       } else if (step === "completed") {
         return WorkspacesMiddleware(req, user);
       }
 
+      // 拿到当前用户默认应该进入的 workspace。
       const defaultWorkspace = await getDefaultWorkspace(user);
 
+      //如果用户已经有默认 workspace，就跳到对应的 onboarding 步骤页面，并把 workspace
+      // 带上；如果没有 workspace，就回到 onboarding 总入口。
       if (defaultWorkspace) {
         // Skip workspace step if user already has a workspace
         step = step === "workspace" ? "link" : step;
