@@ -163,7 +163,7 @@ export const withWorkspace = (
             throw new DubApiError({
               code: "not_found",
               message:
-                "Workspace ID not found. Did you forget to include a `workspaceId` query parameter? It looks like you might be using personal API keys, we also recommend refactoring to workspace API keys: https://d.to/keys",
+                "未找到工作空间 ID。你是不是忘了在查询参数里带上 workspaceId？看起来你可能还在使用个人 API key，同时也推荐你重构为工作空间 API key：https://d.to/keys",
             });
           }
         }
