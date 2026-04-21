@@ -55,9 +55,12 @@ interface WithWorkspaceHandler {
   }): Promise<Response>;
 }
 
+// 基础结构 export const wfuncont=(handler:typehandler,{options}:{typeoptions}={})=>{return xx()}
+// 一个函数的返回值是另一个函数 = (先配置,再执行)
 export const withWorkspace = (
-  handler: WithWorkspaceHandler,
+  handler: WithWorkspaceHandler, // 业务处理函数
   {
+    // 表示这个接口允许哪些套餐访问。如果调用方不传，就默认“所有 plan 都允许”。
     requiredPlan = [
       "free",
       "pro",
@@ -91,11 +94,13 @@ export const withWorkspace = (
       const searchParams = getSearchParams(req.url);
 
       let apiKey: string | undefined = undefined;
+      // 这里的 headers() 是 Next 提供的动态 API，用来读取当前请求的 header。
       let requestHeaders = await headers();
       let responseHeaders = new Headers();
       let workspace: WorkspaceWithUsers | undefined;
 
       try {
+        //1. 先取鉴权信息   这一步是“读取凭证”。
         const authorizationHeader = requestHeaders.get("Authorization");
         if (authorizationHeader) {
           if (!authorizationHeader.startsWith("Bearer ")) {
@@ -108,6 +113,8 @@ export const withWorkspace = (
           apiKey = authorizationHeader.replace("Bearer ", "");
         }
 
+        //先把后面流程里要用到的几个关键变量声明出来。
+        //这是把请求地址解析成标准 URL 对象。
         const url = new URL(req.url || "", API_DOMAIN);
 
         let session: Session | undefined;
@@ -115,7 +122,7 @@ export const withWorkspace = (
         let workspaceSlug: string | undefined;
         let permissions: PermissionAction[] = [];
         let token: TokenCacheItem | null = null;
-        const isRestrictedToken = apiKey?.startsWith("dub_");
+        const isRestrictedToken = apiKey?.startsWith("dub_"); // 是否是 restricted(受限) token
 
         const idOrSlug =
           params?.idOrSlug ||
@@ -124,14 +131,17 @@ export const withWorkspace = (
           searchParams.projectSlug;
 
         /*
-          if there's no workspace ID or slug and it's not a restricted token:
-          - special case for anonymous link creation
-          - missing authorization header
-          - user is still using personal API keys
+          如果当前请求里没有提供 workspace 的 ID 或 slug，并且也不是受限 token，
+          那么通常只会落入下面几种情况之一：
+
+          - 匿名创建短链的特殊场景
+          - 缺少 Authorization 请求头
+          - 用户仍在使用旧的 personal API key，而不是 workspace API key
         */
         if (!idOrSlug && !isRestrictedToken) {
-          // special case for anonymous link creation
+          // 特殊情况：匿名创建短链
           if (
+            // 只有当请求头里带了某个特殊标记，并且当前请求路径正好是 /links 或 /api/links，才认为这是“匿名创建短链”的特殊请求。
             requestHeaders.has("dub-anonymous-link-creation") &&
             ["/links", "/api/links"].includes(req.nextUrl.pathname)
           ) {
@@ -158,6 +168,7 @@ export const withWorkspace = (
           }
         }
 
+        //  把前面拿到的 idOrSlug 进一步判断到底是 workspace id，还是 workspace slug。
         if (idOrSlug) {
           if (idOrSlug.startsWith("ws_")) {
             workspaceId = normalizeWorkspaceId(idOrSlug);
@@ -166,31 +177,35 @@ export const withWorkspace = (
           }
         }
 
+        //  如果请求 URL 中包含 /analytics 或 /events，就标记为分析相关的请求。
         const isAnalytics =
           url.pathname.includes("/analytics") ||
           url.pathname.includes("/events");
 
+        //  如果这次请求带了 apiKey，就走 API key 鉴权流程；否则就走普通登录 session 鉴权流程。
         if (apiKey) {
           const hashedKey = await hashToken(apiKey);
-
           const cachedToken = await tokenCache.get({
             hashedKey,
           });
 
           if (!cachedToken) {
+            // prismaArgs
             const prismaArgs = {
+              // 表示这次的查询条件
               where: {
                 hashedKey,
               },
+              // 表示这次查询只取指定字段
               select: {
-                expires: true,
+                expires: true, // expirres 到期
                 ...(isRestrictedToken && {
-                  scopes: true,
-                  projectId: true,
-                  installationId: true,
+                  scopes: true, // 作用域
+                  projectId: true, // 项目id
+                  installationId: true, // 安装id
                   project: {
                     select: {
-                      plan: true,
+                      plan: true, // 项目plan
                     },
                   },
                 }),
@@ -205,24 +220,26 @@ export const withWorkspace = (
             }
           }
 
+          // 优先用 cachedToken，如果 cachedToken 没值，就用前面查出来的 token
           token = cachedToken || token;
 
           if (!token || !token.user) {
             throw new DubApiError({
-              code: "unauthorized",
-              message: "Unauthorized: Invalid API key.",
+              code: "unauthorized", // 未经许可（或批准）的，未经授权的
+              message: "Unauthorized: Invalid API key.", //未授权：无效的API密钥。
             });
           }
 
           if (token.expires && token.expires < new Date()) {
             throw new DubApiError({
-              code: "unauthorized",
-              message: "Unauthorized: Access token expired.",
+              code: "unauthorized", // 未经许可（或批准）的，未经授权的
+              message: "Unauthorized: Access token expired.", // 未授权：访问令牌已过期。
             });
           }
 
           if (!cachedToken) {
             waitUntil(
+              //核心作用是：  把一个异步任务挂到请求生命周期里继续执行，但不阻塞当前响应返回
               tokenCache.set({
                 hashedKey,
                 token,
@@ -231,21 +248,33 @@ export const withWorkspace = (
           }
 
           // Rate limit checks for API keys
+          // 对使用 API key 发起的请求做限流检查，防止同一个 key 在短时间内打太多请求
           let limit = 0;
+          //let 变量名: 类型 = 值;
           let interval: `${number} s` | `${number} m` = isAnalytics
             ? "1 s"
             : "1 m";
 
+          //  根据当前 token 对应项目的套餐 plan，取出这个套餐的限流配置；如果拿不到 plan，就按 free 套餐处理。
           const planLimit = getRatelimitForPlan(token.project?.plan || "free");
+          // is Analytcs 是否是分析类请求    从当前套餐的限流配置里，取出这次请求应该使用的那一档请求上限
           limit = planLimit.limits[isAnalytics ? "analyticsApi" : "api"];
 
+          //  限制单位时间内的请求次数
+          // rate limit：限流
+          // request：请求
           const { success, headers } = await rateLimitRequest({
+            //   Identifier: 标识符
             identifier: `workspace:ratelimit:${hashedKey}`,
+            // requests: limit：请求的上限
             requests: limit,
+            // interval：时间间隔
             interval,
           });
 
           if (headers) {
+            // Object.entries(headers)  会把对象转成“键值对数组”。
+            //  [ [ 'Retry-After', '59' ], [ 'X-RateLimit-Limit', '1000' ], [ 'X-RateLimit-Remaining', '999' ], [ 'X-RateLimit-Reset', '1713749448' ] ]
             for (const [key, value] of Object.entries(headers)) {
               responseHeaders.set(key, value);
             }
@@ -253,18 +282,21 @@ export const withWorkspace = (
 
           if (!success) {
             throw new DubApiError({
-              code: "rate_limit_exceeded",
-              message: "Too many requests.",
+              code: "rate_limit_exceeded", //超出限制速率
+              message: "Too many requests.", //太多请求了。
             });
           }
 
           // Find workspaceId if it's a restricted token
+          //如果workspaceId是受限令牌，则查找它
           if (isRestrictedToken && token?.projectId) {
             workspaceId = token.projectId;
           }
 
+          //在后台异步更新 token 的 lastUsed（最后使用时间），但最多每分钟更新一次
           waitUntil(
             // update last used time for the token (only once every minute)
+            // 更新该令牌的最后使用时间（每分钟仅更新一次）
             (async () => {
               try {
                 const { success } = await ratelimit(1, "1 m").limit(
@@ -293,21 +325,23 @@ export const withWorkspace = (
             })(),
           );
 
+          //  这段代码是在把 token 对应的用户信息包装成统一的 session 结构，方便后续代码按 session.user 来访问。
           session = {
             user: {
               id: token.user.id,
               name: token.user.name || "",
               email: token.user.email || "",
-              isMachine: token.user.isMachine,
+              isMachine: token.user.isMachine, //“当前用户是不是系统/自动化账户，而不是普通人类用户”。`
             },
           };
         } else {
+          //  如果没有传 apiKey，就通过 NextAuth.js 的 getSession 来获取当前登录用户的 session
           session = await getSession();
 
           if (!session?.user?.id) {
             throw new DubApiError({
-              code: "unauthorized",
-              message: "Unauthorized: Login required.",
+              code: "unauthorized", // 未经许可（或批准）的，未经授权的
+              message: "Unauthorized: Login required.", // 未授权：需要登录。
             });
           }
 

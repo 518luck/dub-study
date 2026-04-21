@@ -16,6 +16,7 @@ export interface Session {
 }
 
 export const getSession = async () => {
+  //  authOptions 是认证系统的总说明书，getServerSession 读取 session 时要按这份说明书办事。`
   return getServerSession(authOptions) as Promise<Session>;
 };
 
