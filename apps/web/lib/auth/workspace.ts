@@ -368,14 +368,18 @@ export const withWorkspace = (
         }
 
         workspace = (await prisma.project.findUnique({
+          // 查询条件
           where: {
             id: workspaceId || undefined,
             slug: workspaceSlug || undefined,
           },
+          // 连带查关联数据
           include: {
             users: {
+              //Prisma 这里 include: { users: ... } 返回的关系字段类型天然就是数组。即使你加了：
               where: {
-                userId: session.user.id,
+                userId: session.user.id, // @@unique([userId, projectId])
+                // 意思是：同一个用户在同一个 workspace 里最多只能有一条成员关系记录。
               },
               select: {
                 role: true,
@@ -386,6 +390,7 @@ export const withWorkspace = (
           },
         })) as WorkspaceWithUsers;
 
+        // exist 存在
         // workspace doesn't exist
         if (!workspace || !workspace.users) {
           throw new DubApiError({
@@ -395,9 +400,13 @@ export const withWorkspace = (
         }
 
         // workspace exists but user is not part of it
+        // 工作区存在但用户不是其中一部分
         if (workspace.users.length === 0) {
+          // pendingInvites  待处理的邀请  [pending:待处理的]
           const pendingInvites = await prisma.projectInvite.findUnique({
             where: {
+              //  两层不是多余，而是在表示“用 email_projectId 这个复合唯一键去查”，里面那层才是这个联合键的具体字段值。
+              //用 email 和 projectId 这组联合唯一条件去查一条唯一记录
               email_projectId: {
                 email: session.user.email,
                 projectId: workspace.id,
@@ -427,22 +436,31 @@ export const withWorkspace = (
         }
 
         // Machine users have owner role by default
+        //默认情况下，机器用户具有所有者角色  |   机器用户默认拥有 owner 角色
         // Only workspace owners can create machine users
+        //只有工作区所有者可以创建机器用户  |  只有工作区的 owner 才能创建机器用户
         if (session.user.isMachine) {
+          // 如果当前登录身份是机器用户，就把他在当前 workspace 里的角色直接当成 owner
           workspace.users[0].role = "owner";
         }
 
+        // 根据当前用户在这个 workspace 里的角色，算出他拥有的权限列表
+        //  因为这里控制的不是“这个人全局是什么身份”，而是“这个人在这个 workspace 里是什么身份”。
         permissions = getPermissionsByRole(workspace.users[0].role);
 
         // Find the subset of permissions that the user has access to based on the token scopes
+        //根据 token 的 scopes，找出当前用户实际可用的那部分权限。
+        //如果当前用的是 restricted token，就不能只看用户角色，还要看这个 token 自己允许哪些 scope。
         if (isRestrictedToken && token?.scopes) {
           const tokenScopes = (token.scopes.split(" ") as Scope[]) || [];
+          //token 允许的权限 和 用户角色本来拥有的权限 的交集。
           permissions = mapScopesToPermissions(tokenScopes).filter((p) =>
             permissions.includes(p),
           );
         }
 
         // Check user has permission to make the action
+        // 如果当前接口定义了“需要哪些权限”，那就检查当前用户有没有这些权限；没有的话就抛错拦截。
         if (requiredPermissions.length > 0) {
           throwIfNoAccess({
             permissions,
@@ -454,6 +472,7 @@ export const withWorkspace = (
 
         // role checks
         if (
+          //  > 如果这个接口要求必须是某些角色才能访问，而当前用户在这个 workspace 里的角色不在允许范围内，就直接报错
           requiredRoles.length > 0 &&
           !requiredRoles.includes(workspace.users[0].role)
         ) {
@@ -464,6 +483,7 @@ export const withWorkspace = (
         }
 
         // beta feature checks
+        //  > 如果当前接口或功能要求某个 featureFlag 开启，系统就去查这个 workspace 有没有开通这个功能；如果没开，就禁止访问。
         if (featureFlag) {
           const flags = await getFeatureFlags({
             workspaceId: workspace.id,
@@ -478,6 +498,7 @@ export const withWorkspace = (
         }
 
         // plan checks
+        // > 如果当前 workspace 的套餐 plan 不在接口要求的套餐范围里，就禁止访问。
         if (!requiredPlan.includes(workspace.plan)) {
           throw new DubApiError({
             code: "forbidden",
@@ -486,6 +507,7 @@ export const withWorkspace = (
         }
 
         // analytics API checks
+        //免费套餐的 workspace，如果是通过 apiKey 调用 analytics 接口，就不允许访问。
         if (
           workspace.plan === "free" &&
           apiKey &&
@@ -497,18 +519,22 @@ export const withWorkspace = (
           });
         }
 
+        //前面的鉴权、权限、角色、套餐、功能开关这些检查都通过了，现在正式调用真正的业务处理函数 handler。
         return await handler({
-          req: clonedReq,
-          params,
-          searchParams,
-          headers: responseHeaders,
-          session,
-          workspace,
-          permissions,
-          token,
+          req: clonedReq, // 当前请求对象
+          params, // 路由参数
+          searchParams, // 查询参数
+          headers: responseHeaders, // 响应头
+          session, // 当前登录用户会话
+          workspace, // 当前解析出来的 workspace
+          permissions, // 当前用户 / token 最终可用的权限
+          token, // 当前请求使用的 token 信息（如果有）
         });
       } catch (error) {
         // Log the conversion events for debugging purposes
+        //> 在后台额外执行一段异步任务。
+        // > 如果当前请求是 /track/lead 或 /track/sale，并且有 workspace，就把这次错误记录下来。
+        //  异步记录错误日志，而且不阻塞当前请求返回。
         waitUntil(
           (async () => {
             const paths = ["/track/lead", "/track/sale"];

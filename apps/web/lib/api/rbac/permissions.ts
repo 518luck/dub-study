@@ -163,6 +163,7 @@ export const ROLE_PERMISSIONS: {
 ];
 
 // Get permissions for a role
+// > 从 ROLE_PERMISSIONS 中找出当前角色 role 拥有的所有权限项，再把这些权限项的 action 提取出来，作为数组返回。
 export const getPermissionsByRole = (role: WorkspaceRole) => {
   return ROLE_PERMISSIONS.filter(({ roles }) => roles.includes(role)).map(
     ({ action }) => action,

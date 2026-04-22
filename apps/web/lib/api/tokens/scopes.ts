@@ -209,6 +209,7 @@ export const ROLE_SCOPES_MAP = RESOURCE_SCOPES.reduce((acc, scope) => {
 }, {});
 
 // For each scope, get the permissions it grants access to and return array of permissions
+// > 从 SCOPE_PERMISSIONS_MAP 中，用 scopes 数组里的每个 scope 去查对应的权限，拼成一个 permissions 数组并返回。
 export const mapScopesToPermissions = (scopes: Scope[]) => {
   const permissions: PermissionAction[] = [];
 
