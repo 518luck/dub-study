@@ -12,68 +12,77 @@ model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
-  emailVerified DateTime?
+  emailVerified DateTime? // ? :可为空   (系统以后长期判断你这个邮箱是否已验证的标记)
   image         String?
-  isMachine     Boolean   @default(false)
+  isMachine     Boolean   @default(false) //  API key / 自动化程序
   createdAt     DateTime  @default(now())
 
   // password & security fields
+  // 密码和安全字段
   passwordHash         String?
-  invalidLoginAttempts Int       @default(0)
-  lockedAt             DateTime?
+  invalidLoginAttempts Int       @default(0) // invalid 无效的  attempts 次数( 输错次数,成功后就清零)
+  lockedAt             DateTime? // locked 锁定的 ( 这个账号是在什么时候被锁定的)
 
   // user preferences
+  // 用户偏好设置
   defaultWorkspace String? // slug of the user's default workspace
   defaultPartnerId String? // the user's default partner ID
 
   // internal fields
+  // 内部字段
   source   String? // where the user came from
-  sentMail Boolean @default(false)
+  sentMail Boolean @default(false) //某种邮件是否已经发过
 
   // relational data
-  accounts                Account[]
-  sessions                Session[]
-  notificationPreferences UserNotificationPreferences?
-  projects                ProjectUsers[]
+  accounts                Account[] //  项目里的登录绑定记录表 Google 登录 GitHub 登录
+  sessions                Session[] //  每台设备/浏览器独立会话，单独失效互不影响
+  notificationPreferences UserNotificationPreferences? // notification 通知 preferences 偏好
+  projects                ProjectUsers[] //这个用户加入过哪些项目的关系记录
   partners                PartnerUser[]
   links                   Link[]
-  dashboards              Dashboard[]
-  tokens                  Token[]
-  restrictedTokens        RestrictedToken[]
-  oAuthCodes              OAuthCode[]
-  integrations            Integration[] // Integrations user created in their workspace
-  installedIntegrations   InstalledIntegration[] // Integrations user installed in their workspace
-  folders                 FolderUser[]
-  folderAccessRequests    FolderAccessRequest[]
-  utmTemplates            UtmTemplate[]
-  payouts                 Payout[]
-  bountySubmissions       BountySubmission[]
-  programApplications     ProgramApplication[]
-  sentMessages            Message[]
-  partnerComments         PartnerComment[]
-  fraudEventGroups        FraudEventGroup[]
-  activityLogs            ActivityLog[]
-  createdCommissions     Commission[]
+  dashboards              Dashboard[] //一个可保存的看板/分享页对象
+  tokens                  Token[] //用户生成出来给程序调用 API 用的密钥 (通用钥匙)
+  restrictedTokens        RestrictedToken[] //Restricted 受限 而且只限某个房间的钥匙 
+  oAuthCodes              OAuthCode[] // Dub 自己签发给第三方应用的 authorization code 一个用户可以授权多个应用
+  integrations            Integration[] // Integrations user created in their workspace 集成(不理解)
+  installedIntegrations   InstalledIntegration[] // Integrations user installed in their workspace //集成
+  folders                 FolderUser[] // 用户所在的文件夹成员/权限关系记录
+  folderAccessRequests    FolderAccessRequest[] // 这个用户申请过访问哪些 folder 的记录
+  utmTemplates            UtmTemplate[] //  utm 访问流量从哪来的  流量标识模板
+  payouts                 Payout[] //  支付记录
+  bountySubmissions       BountySubmission[] //这个用户提交过的 bounty 奖励申请/任务提交记录
+  programApplications     ProgramApplication[] // 某个人申请加入某个 program 的申请表/申请记录
+  sentMessages            Message[] // 用户发送的消息记录
+  partnerComments         PartnerComment[] // 用户写过的 partner 评论记录
+  fraudEventGroups        FraudEventGroup[] // 用户处理/关联的风控事件组记录
+  activityLogs            ActivityLog[] // 用户关联的操作日志记录
+  createdCommissions      Commission[] // 用户手动创建的佣金记录
 
+  //  @@ 索引: 加速查询
   @@index(sentMail)
   @@index(source)
   @@index(defaultWorkspace)
 }
 
+// 账户 
 model Account {
   id                       String  @id @default(cuid())
-  userId                   String
-  type                     String
-  provider                 String
-  providerAccountId        String
-  refresh_token            String? @db.Text
-  refresh_token_expires_in Int?
-  access_token             String? @db.Text
-  expires_at               Int?
-  token_type               String?
-  scope                    String?
-  id_token                 String? @db.Text
-  session_state            String?
+  userId                   String // 关联到哪个用户
+  type                     String // 账户类型，例如 OAuth 登陆的大类 oauth  email
+  provider                 String // 登录提供商，例如 Google、GitHub
+  //   以 GitHub 为例，OAuth 拿到用户信息时，通常不只是名字和头像，还会有类似：
+  // - id   // - login  // - name  // - avatar_url  // - email
+  // 其中最关键的是 GitHub 那边的 id。
+  // 这个值才适合存进 providerAccountId。
+  providerAccountId        String // 该提供商中的账户 ID
+  refresh_token            String? @db.Text // 刷新 access token 用的令牌 是“专门用来续期的”
+  refresh_token_expires_in Int? // refresh token 的剩余有效期/过期时长   
+  access_token             String? @db.Text // 当前 access token   是“直接拿来用的”
+  expires_at               Int? // access token 过期时间（通常是时间戳）
+  token_type               String? // token 类型，例如 Bearer
+  scope                    String? // 授权范围
+  id_token                 String? @db.Text // OpenID Connect 返回的 ID token  用来说明“登录的这个人是谁”
+  session_state            String? // 某些提供商返回的会话状态标记
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
