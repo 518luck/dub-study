@@ -41,6 +41,7 @@ const updateWorkspaceSchema = createWorkspaceSchema
 // GET /api/workspaces/[idOrSlug] – get a specific workspace by id or slug
 export const GET = withWorkspace(
   async ({ workspace, headers }) => {
+    //  > 去数据库里找出这个 workspace 下面的域名列表，最多取 100 条，并且只返回指定字段。
     const domains = await prisma.domain.findMany({
       where: {
         projectId: workspace.id,

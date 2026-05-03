@@ -7,10 +7,13 @@ import { SidePanel } from "./side-panel";
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <>
+      {/* 上面放一个全局工具条 Toolbar */}
       <Toolbar />
 
+      {/* 中间左侧：登录/注册内容区域 */}
       <div className="relative grid min-h-[100dvh] min-h-screen grid-cols-1 min-[900px]:grid-cols-[minmax(0,1fr)_440px] lg:grid-cols-[minmax(0,1fr)_595px]">
-        {/* Left: Main auth content */}
+        {/* 左边放真正的登录/注册内容 children */}
+        {/* 左边背景再叠一层网格和渐变做视觉氛围 */}
         <div className="relative">
           <div className="absolute inset-0 isolate overflow-hidden bg-white">
             {/* Grid */}
@@ -62,6 +65,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
 
+        {/* 右边放品牌侧边面板 SidePanel */}
         {/* Right: Side panel - hidden on mobile */}
         <SidePanel />
       </div>
