@@ -343,40 +343,63 @@ export const authOptions: NextAuthOptions = {
   ],
   // @ts-ignore
   adapter: CustomPrismaAdapter(prisma), // 负责让 NextAuth 和你的数据库对接。
+  // “session 的底层存储/维持方式，采用 JWT。”
   session: { strategy: "jwt" }, //用户登录后的“登录状态”。 用户登录成功以后，系统不能每次都让他重新输密码。所以需要有一种“记住你已经登录”的机制。
   // 字段是用来配置 浏览器里保存登录凭证的 cookie 长什么样、怎么发、在哪些域名下生 效。
   cookies: {
+    //专门配置“登录 session 对应的 cookie”
     sessionToken: {
-      name: `${VERCEL_DEPLOYMENT ? "__Secure-" : ""}next-auth.session-token`,
+      name: `${VERCEL_DEPLOYMENT ? "__Secure-" : ""}next-auth.session-token`, //指定 cookie 名字
       options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
+        httpOnly: true, // 前端 JavaScript 不能直接读这个 cookie
+        //SameSite 属性是浏览器的一种安全机制，专门用来决定 “在跨站请求时，浏览器是否允许发送这个 Cookie”。
+        // "Lax"（宽松模式）
+        // 在大多数跨站（Cross-site）请求中，浏览器不会发送 Cookie。但在一些“安全”的、由用户主动触发的导航请求中，它会发送 Cookie。
+        sameSite: "lax", //控制跨站请求时 cookie 怎么带
+        path: "/", //指定 Cookie 的路径。  整个网站路径下都能带这个 cookie
         // When working on localhost, the cookie domain must be omitted entirely (https://stackoverflow.com/a/1188145)
-        domain: VERCEL_DEPLOYMENT
+        domain: VERCEL_DEPLOYMENT // 指定这个 cookie 属于哪个域名
           ? `.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
-          : undefined,
-        secure: VERCEL_DEPLOYMENT,
+          : undefined, // 如果不是部署环境，就不用设 domain
+        secure: VERCEL_DEPLOYMENT, //生产环境必须用 HTTPS
       },
     },
   },
   pages: {
-    signIn: "/login",
-    error: "/login",
+    //遇到某些认证相关页面时，不要用它默认页面，而是跳到你项目自己的页面。
+    signIn: "/login", //登录页面
+    error: "/login", //错误页面
   },
+  // NextAuth 在认证流程的几个关键节点，留给你插入自定义逻辑的钩子。
+  //   NextAuth 默认会帮你走一套标准认证流程。
+  // 但真实项目里通常还会有额外规则，比如：
+  // - 某些邮箱不能登录
+  // - 某些用户被锁定不能登录
+  // - 登录成功后要补头像
+  // - token 里要塞额外用户信息
+  // - session 返回给前端时要带上 user.id
   callbacks: {
+    // 在“登录即将成功”之前，再做一次最终检查和补充处理。
+    //  - user ：当前这次登录对应的用户
+    //  - account ：这次登录是通过哪种 provider 来的
+    //  - profile ：第三方 provider 返回的原始资料
     signIn: async ({ user, account, profile }) => {
+      // 先把这次登录的核心数据打出来，方便开发阶段排查问题。
       console.log({ user, account, profile });
 
+      // 如果没有邮箱，或者邮箱在系统黑名单里，直接拒绝登录。
       if (!user.email || (await isBlacklistedEmail(user.email))) {
         return false;
       }
 
+      // 如果用户记录上带有 lockedAt，说明账号已被锁定，也直接拒绝登录。
       if (user?.lockedAt) {
         return false;
       }
 
       // If the user is not using SAML, we need to check if SAML is enforced for the email domain
+      // 如果这次不是通过 saml / saml-idp / credentials 登录，
+      // 就额外检查该邮箱所属域名是否被强制要求走企业 SSO。
       if (
         account?.provider !== "saml" &&
         account?.provider !== "saml-idp" &&
@@ -384,36 +407,51 @@ export const authOptions: NextAuthOptions = {
       ) {
         const ssoEnforced = await isSamlEnforcedForEmailDomain(user.email);
 
+        // 如果这个域名被强制要求走 SSO，那 Google / GitHub 这类登录方式就不能放行。
         if (ssoEnforced) {
           throw new Error("require-saml-sso");
         }
       }
 
+      // Google / GitHub 登录成功后，尝试把第三方资料同步到本地用户。
       if (account?.provider === "google" || account?.provider === "github") {
         const userExists = await prisma.user.findUnique({
           where: { email: user.email },
           select: { id: true, name: true, image: true },
         });
+
+        // 本地没有用户，或者第三方没有返回 profile，就不做同步，直接放行。
         if (!userExists || !profile) {
           return true;
         }
+
         // if the user already exists via email,
         // update the user with their name and image
         if (userExists && profile) {
+          // Google 返回头像字段是 picture，GitHub 返回头像字段是 avatar_url。
           const profilePic =
             profile[account.provider === "google" ? "picture" : "avatar_url"];
+
+          // 先假设这次可能会得到一个新的头像地址。
           let newAvatar: string | null = null;
+
           // if the existing user doesn't have an image or the image is not stored in R2
           if (
             (!userExists.image || !isStored(userExists.image)) &&
             profilePic
           ) {
+            // 如果当前头像不存在，或还不是自己存储系统里的地址，
+            // 就把第三方头像备份到自己的对象存储里。
             const { url } = await storage.upload({
               key: `avatars/${userExists.id}`,
               body: profilePic,
             });
             newAvatar = url;
           }
+
+          // 回写本地用户资料：
+          // - 如果本地没有名字，就补名字
+          // - 如果刚刚备份了新头像，就更新头像地址
           await prisma.user.update({
             where: { email: user.email },
             data: {
@@ -423,15 +461,20 @@ export const authOptions: NextAuthOptions = {
             },
           });
         }
+        // SAML / IdP 登录成功后，检查用户是否能加入目标 workspace。
       } else if (
         account?.provider === "saml" ||
         account?.provider === "saml-idp"
       ) {
         let samlProfile;
 
+        // saml-idp 这条链路里，profile 被挂在 user.profile 上；
+        // 普通 saml 链路里，直接使用参数里的 profile。
         if (account?.provider === "saml-idp") {
           // @ts-ignore
           samlProfile = user.profile;
+
+          // 如果没有拿到 SAML profile，就不继续做 workspace 绑定逻辑。
           if (!samlProfile) {
             return true;
           }
@@ -439,10 +482,12 @@ export const authOptions: NextAuthOptions = {
           samlProfile = profile;
         }
 
+        // SAML profile 里必须带有目标 tenant/workspace，否则拒绝登录。
         if (!samlProfile?.requested?.tenant) {
           return false;
         }
 
+        // 找到这次 SAML 登录要进入的 workspace。
         const workspace = await prisma.project.findUnique({
           where: {
             id: samlProfile.requested.tenant,
@@ -459,10 +504,12 @@ export const authOptions: NextAuthOptions = {
 
           // ssoEmailDomain should be required for all SAML enabled workspace
           // this should not happen
+          // 开启了 SAML 的 workspace 却没有配置允许登录的邮箱域名，视为异常并拒绝登录。
           if (!ssoEmailDomain) {
             return false;
           }
 
+          // 用户邮箱域名必须和 workspace 的 SSO 域名一致，才允许进入这个 workspace。
           if (
             emailDomain.toLocaleLowerCase() !==
             ssoEmailDomain.toLocaleLowerCase()
@@ -470,6 +517,9 @@ export const authOptions: NextAuthOptions = {
             return false;
           }
 
+          // 并行做两件事：
+          // 1. 把当前用户加入 workspace
+          // 2. 删除该用户在这个 workspace 下待处理的邀请记录
           await Promise.allSettled([
             // add user to workspace
             prisma.projectUsers.upsert({
@@ -497,6 +547,8 @@ export const authOptions: NextAuthOptions = {
           ]);
         }
         // Login with Framer
+        // Framer 登录有单独的账号关联限制：
+        // 如果这个邮箱已经绑定过其他 provider，就不允许再用 Framer 关联登录。
       } else if (account?.provider === "framer") {
         const userFound = await prisma.user.findUnique({
           where: {
@@ -508,24 +560,34 @@ export const authOptions: NextAuthOptions = {
         });
 
         // account doesn't exist, let the user sign in
+        // 本地不存在这个邮箱的用户，说明没有账号冲突，直接放行。
         if (!userFound) {
           return true;
         }
 
+        // 过滤出除了 framer 之外的其他登录方式。
         const otherAccounts = userFound?.accounts.filter(
           (account) => account.provider !== "framer",
         );
 
         // we don't allow account linking for Framer partners
         // so redirect to the standard login page
+        // 如果已经绑定过其他 provider，则阻止 Framer 账号继续关联。
         if (otherAccounts && otherAccounts.length > 0) {
           throw new Error("framer-account-linking-not-allowed");
         }
 
         return true;
       }
+
+      // 经过所有检查后，没有命中任何拒绝条件，就允许这次登录完成。
       return true;
     },
+    //  决定登录后要把哪些用户信息放进 token 里。
+    //     触发时机：
+    // - 生成 JWT 时
+    // - 更新 JWT 时
+    // - 读取/刷新基于 JWT 的 session 时
     jwt: async ({
       token,
       user,
@@ -533,14 +595,17 @@ export const authOptions: NextAuthOptions = {
     }: {
       token: JWT;
       user: User | AdapterUser | UserProps;
-      trigger?: "signIn" | "update" | "signUp";
+      trigger?: "signIn" | "update" | "signUp"; //这次调是通过什么方式登录的，有三种：登录，更新，注册
     }) => {
+      //如果这次调用 jwt callback 时，NextAuth 传进来了 user就把这个用户对象挂到 token.user 上
       if (user) {
         token.user = user;
       }
 
+      //如果这次调用 jwt callback的原因是update`  那说明不是普通登录，而是“用户资料更新”场景所以这里准备重新刷新 token 里的用户信息。
       // refresh the user's data if they update their name / email
       if (trigger === "update") {
+        // 去数据库重新查一遍最新用户资料，不再完全相信 token 里原来的旧数据
         const refreshedUser = await prisma.user.findUnique({
           where: {
             id: token.sub,
@@ -565,6 +630,9 @@ export const authOptions: NextAuthOptions = {
 
       return token;
     },
+    //   - 当前端或服务端请求 session 数据时
+    // - 当 NextAuth 要把 session 返回给前端/后端时
+    // - 你可以改造 session 内容
     session: async ({ session, token }) => {
       session.user = {
         id: token.sub,
@@ -574,9 +642,15 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+  //  认证流程已经发生完之后，NextAuth 通知你“这件事发生了”，你可以顺手做一些后处理。
   events: {
+    // 登录成功后的事件处理器。
+    // 这里不再决定“能不能登录”，而是做登录成功后的后续动作。
     async signIn(message) {
+      // 打印这次登录成功事件的原始消息，方便调试。
       console.log("signIn", message);
+
+      // 取出当前登录用户的邮箱，再去数据库查本地用户记录。
       const email = message.user.email as string;
       const user = await prisma.user.findUnique({
         where: { email },
@@ -588,13 +662,18 @@ export const authOptions: NextAuthOptions = {
           createdAt: true,
         },
       });
+
+      // 如果登录成功后反而查不到本地用户，就跳过后续欢迎流程。
       if (!user) {
         console.log(
           `User ${message.user.email} not found, skipping welcome workflow...`,
         );
         return;
       }
+
       // only process new user workflow if the user was created in the last 15s (newly created user)
+      // 只有“刚刚创建的新用户”才触发欢迎流程。
+      // 这里通过 createdAt 是否在最近 15 秒内来粗略判断新用户。
       if (
         user.createdAt &&
         new Date(user.createdAt).getTime() > Date.now() - 15000
@@ -602,11 +681,15 @@ export const authOptions: NextAuthOptions = {
         console.log(
           `New user ${user.email} created,  triggering welcome workflow...`,
         );
+
+        // 这些任务不阻塞当前请求，交给 waitUntil 在响应返回后继续跑。
         waitUntil(
           Promise.allSettled([
             // track lead if dub_id cookie is present
+            // 如果存在相关 cookie，就记录一次 lead。
             trackDubLead(user),
             // trigger welcome workflow 45 minutes after the user signed up
+            // 45 分钟后再触发欢迎任务，避免用户刚注册就立刻收到完整欢迎流程。
             qstash.publishJSON({
               url: `${APP_DOMAIN_WITH_NGROK}/api/cron/welcome-user`,
               delay: 45 * 60,
@@ -617,6 +700,8 @@ export const authOptions: NextAuthOptions = {
       }
 
       // lazily backup user avatar to R2
+      // 如果当前头像还是第三方地址，而不是自己对象存储中的地址，
+      // 就异步备份到自己的存储，再更新数据库里的 image。
       const currentImage = message.user.image;
       if (currentImage && !isStored(currentImage)) {
         waitUntil(
@@ -638,6 +723,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Complete any outstanding program applications
+      // 如果这个邮箱还有未完成的 program application，就顺手补做。
       if (message.user.email) {
         waitUntil(completeProgramApplications(message.user.email));
       }
