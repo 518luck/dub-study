@@ -7,6 +7,7 @@
   "types": "./index.ts",
   "scripts": {
     "generate": "npx prisma generate --schema=./schema",
+    "erd": "npx prisma generate --schema=./schema --generator erd",
     "push": "npx prisma db push --schema=./schema",
     "studio": "npx prisma studio --schema=./schema --browser none",
     "prebuild": "pnpm run generate",
@@ -19,8 +20,10 @@
     "@prisma/client": "6.19.1"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.14.0",
     "@types/node": "18.11.9",
     "prisma": "6.19.1",
+    "prisma-erd-generator": "^2.4.2",
     "tsx": "^4.11.0",
     "typescript": "5.2.2"
   },

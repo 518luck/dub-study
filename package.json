@@ -6,6 +6,7 @@
     "build": "turbo build",
     "build:packages": "pnpm -r --filter \"./packages/**\" build",
     "dev": "turbo dev",
+    "erd": "pnpm --filter=@dub/prisma erd",
     "lint": "turbo lint",
     "clean": "turbo clean",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

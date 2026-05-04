@@ -3,6 +3,7 @@ import { ResendBulkEmailOptions, ResendEmailOptions } from "./resend/types";
 import { sendViaNodeMailer } from "./send-via-nodemailer";
 import { sendBatchEmailViaResend, sendEmailViaResend } from "./send-via-resend";
 
+// 自定义发送方式
 export const sendEmail = async (opts: ResendEmailOptions) => {
   if (resend) {
     return await sendEmailViaResend(opts);

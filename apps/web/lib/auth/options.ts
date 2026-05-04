@@ -32,15 +32,18 @@ import { trackDubLead } from "./track-dub-lead";
 
 const VERCEL_DEPLOYMENT = !!process.env.VERCEL_URL;
 
+//基于官方的 PrismaAdapter 生成一个自定义 adapter，并重写其中的 createUser 方法。
 const CustomPrismaAdapter = (p: PrismaClient) => {
   return {
-    ...PrismaAdapter(p),
+    ...PrismaAdapter(p), //先调用官方提供的 PrismaAdapter(p) 它会返回一个标准的 Prisma adapter 对象
     createUser: async (data: any) => {
+      //createUser 是 NextAuth adapter 里的一个标准方法。  当 NextAuth 需要创建用户时，就会调用这个方法。
       return p.user.create({
         data: {
-          ...data,
-          id: createId({ prefix: "user_" }),
+          ...data, // 先把 NextAuth 传进来的用户数据全部展开进来
+          id: createId({ prefix: "user_" }), // 自定义用户主键格式。
           notificationPreferences: {
+            //顺手把这个用户对应的 notificationPreferences 记录也一起创建出来
             create: {},
           },
         },
@@ -49,9 +52,14 @@ const CustomPrismaAdapter = (p: PrismaClient) => {
   };
 };
 
+// “登录注册总配置文件”或者“认证系统总说明书”。
+// - export const authOptions：导出一个常量，名字叫 authOptions
+// - : NextAuthOptions：这个常量必须符合 NextAuth 规定的配置类型
 export const authOptions: NextAuthOptions = {
   providers: [
+    // 邮箱登录
     EmailProvider({
+      // 自定义发送方式
       sendVerificationRequest({ identifier, url }) {
         if (!isProduction) {
           console.log(`Login link: ${url}`);
@@ -66,15 +74,16 @@ export const authOptions: NextAuthOptions = {
       },
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      allowDangerousEmailAccountLinking: true,
+      clientId: process.env.GOOGLE_CLIENT_ID as string, //  这是 Google 分配给你这个应用的 应用 ID。
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string, // 这是 Google 分配给你这个应用的 应用密钥。
+      allowDangerousEmailAccountLinking: true, //允许按相同邮箱把 Google 登录和已有账号关联起来
     }),
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID as string,
       clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
       allowDangerousEmailAccountLinking: true,
     }),
+    // saml 是普通 SAML SSO 登录的第一步入口。
     {
       id: "saml",
       name: "BoxyHQ",
@@ -125,80 +134,83 @@ export const authOptions: NextAuthOptions = {
         };
       },
       options: {
+        // 这是这个自定义 provider 的附加配置。
         clientId: "dummy",
         clientSecret: process.env.NEXTAUTH_SECRET as string,
       },
       allowDangerousEmailAccountLinking: true,
     },
+    // saml-idp  是 IdP-initiated 登录回调后的承接入口。
     CredentialsProvider({
-      id: "saml-idp",
-      name: "IdP Login",
+      id: "saml-idp", // 这个 provider 的唯一标识；前端/NextAuth 会用它区分这是哪一种登录方式
+      name: "IdP Login", // 这个 provider 的显示名称，通常用于登录页按钮或内部标识
       credentials: {
-        code: {},
+        code: {}, // 定义这个登录入口期望接收的凭证字段；这里只需要一个 code
       },
       async authorize(credentials) {
+        // 用户提交这个 provider 的凭证后，NextAuth 会调 用这里；你自己决定如何校验
         if (!credentials) {
-          return null;
+          return null; // 没收到任何凭证，登录失败
         }
 
-        const { code } = credentials;
+        const { code } = credentials; // 从提交的凭证里取出 code
 
         if (!code) {
-          return null;
+          return null; // code 不存在，登录失败
         }
 
-        const { oauthController } = await jackson();
+        const { oauthController } = await jackson(); // 获取 SSO/SAML 这套桥接认证里用到的控制器
 
         // Fetch access token
         const { access_token } = await oauthController.token({
-          code,
-          grant_type: "authorization_code",
-          redirect_uri: process.env.NEXTAUTH_URL as string,
-          client_id: "dummy",
-          client_secret: process.env.NEXTAUTH_SECRET as string,
+          code, // 前一步拿到的授权码，用它去换 access token
+          grant_type: "authorization_code", // OAuth 标准授权码模式
+          redirect_uri: process.env.NEXTAUTH_URL as string, // 回调地址/重定向地址，要和发起登录时保持一致
+          client_id: "dummy", // 客户端 ID；这里是桥接场景里的占位值，不是像 Google 那样的真实应用 ID
+          client_secret: process.env.NEXTAUTH_SECRET as string, // 客户端密钥；这里用项目自己的密钥参与校验
         });
 
         if (!access_token) {
-          return null;
+          return null; // token 没换到，登录失败
         }
 
         // Fetch user info
-        const userInfo = await oauthController.userInfo(access_token);
+        const userInfo = await oauthController.userInfo(access_token); // 用 access token 去拿用户资料
 
         if (!userInfo) {
-          return null;
+          return null; // 没拿到用户资料，登录失败
         }
 
         let existingUser = await prisma.user.findUnique({
-          where: { email: userInfo.email },
+          where: { email: userInfo.email }, // 用 SSO 返回的邮箱去本地数据库找是否已有对应用户
         });
 
         // user is authorized but doesn't have a Dub account, create one for them
         if (!existingUser) {
           existingUser = await prisma.user.create({
             data: {
-              id: createId({ prefix: "user_" }),
-              email: userInfo.email,
+              id: createId({ prefix: "user_" }), // 创建本地用户 ID
+              email: userInfo.email, // 用外部身份系统返回的邮箱创建本地用户
               name: `${userInfo.firstName || ""} ${
                 userInfo.lastName || ""
-              }`.trim(),
+              }`.trim(), // 用外部身份系统返回的名和姓拼成本地用户名
               notificationPreferences: {
-                create: {},
+                create: {}, // 顺手创建这个用户的通知偏好默认记录
               },
             },
           });
         }
 
-        const { id, name, email, image } = existingUser;
+        const { id, name, email, image } = existingUser; // 从本地用户记录里取出后面要返回的字段;
 
         return {
-          id,
-          email,
-          name,
-          email_verified: true,
-          image,
+          id, // 返回给 NextAuth 的用户 ID
+          email, // 返回给 NextAuth 的用户邮箱
+          name, // 返回给 NextAuth 的用户名
+          email_verified: true, // 标记这个邮箱已验证；因为 SSO 身份系统已经完成了身份确认
+          image, // 返回用户头像
           // adding profile here so we can access it in signIn callback
-          profile: userInfo,
+          profile: userInfo, // 额外挂上原始外部用户信息，后面的 signIn callback 还会继续用
         };
       },
     }),
@@ -301,22 +313,25 @@ export const authOptions: NextAuthOptions = {
 
     // Framer
     {
-      id: "framer",
-      name: "Framer",
-      type: "oauth",
-      clientId: process.env.FRAMER_CLIENT_ID,
-      clientSecret: process.env.FRAMER_CLIENT_SECRET,
-      checks: ["state"],
+      id: "framer", // 这个 provider 的唯一标识。
+      name: "Framer", //通常给 UI 或日志看。
+      type: "oauth", //它告诉 NextAuth：  这个 provider 要按 OAuth 流程处理。
+      clientId: process.env.FRAMER_CLIENT_ID, // 你的 Framer 应用的客户端 ID
+      clientSecret: process.env.FRAMER_CLIENT_SECRET, // 你的 Framer 应用的客户端密钥
+      checks: ["state"], //  OAuth 流程中的安全检查
       authorization: {
+        //去哪个地址发起授权  带哪些参数
         url: `${FRAMER_API_HOST}/auth/oauth/authorize`,
         params: {
           scope: "email",
           response_type: "code",
         },
       },
-      token: `${FRAMER_API_HOST}/auth/oauth/token`,
-      userinfo: `${FRAMER_API_HOST}/auth/oauth/profile`,
+      token: `${FRAMER_API_HOST}/auth/oauth/token`, //告诉 NextAuth：  授权成功拿到 code 后 去哪个地址换 access_token
+      userinfo: `${FRAMER_API_HOST}/auth/oauth/profile`, //token 拿到后 去哪个地址拿用户资料
       profile({ sub, email, name, picture }) {
+        //拿到外部身份系统返回的用户资料后
+        //  转成你系统里需要的用户对象格式
         return {
           id: sub,
           name,
@@ -327,8 +342,9 @@ export const authOptions: NextAuthOptions = {
     },
   ],
   // @ts-ignore
-  adapter: CustomPrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  adapter: CustomPrismaAdapter(prisma), // 负责让 NextAuth 和你的数据库对接。
+  session: { strategy: "jwt" }, //用户登录后的“登录状态”。 用户登录成功以后，系统不能每次都让他重新输密码。所以需要有一种“记住你已经登录”的机制。
+  // 字段是用来配置 浏览器里保存登录凭证的 cookie 长什么样、怎么发、在哪些域名下生 效。
   cookies: {
     sessionToken: {
       name: `${VERCEL_DEPLOYMENT ? "__Secure-" : ""}next-auth.session-token`,
