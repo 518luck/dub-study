@@ -83,6 +83,7 @@ model Project {
   @@index(usageLastChecked(sort: Asc))
 }
 
+// 一个“可选值列表”  用来限制某个字段只能取这几个固定值
 enum WorkspaceRole {
   owner
   member
@@ -102,12 +103,13 @@ model ProjectInvite {
   @@index([projectId])
 }
 
+// 中间表,某些默认的设置只针对 某个 workspace当中
 model ProjectUsers {
   id                     String                  @id @default(cuid())
-  role                   WorkspaceRole           @default(member)
+  role                   WorkspaceRole           @default(member) // role 角色
   userId                 String
   projectId              String
-  notificationPreference NotificationPreference?
+  notificationPreference NotificationPreference? // notification :通知  preferences:偏好/首选项
   workspacePreferences   Json?
   defaultFolderId        String?
   createdAt              DateTime                @default(now())
