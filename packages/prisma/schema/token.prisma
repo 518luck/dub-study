@@ -38,15 +38,17 @@ model RestrictedToken {
 }
 
 // Login tokens
+// 一个用户点邮件里的链接
 model VerificationToken {
-  identifier String
-  token      String   @unique
+  identifier String // 标识符 标识谁在验证,通常是邮箱之类的
+  token      String   @unique // token 一次性
   expires    DateTime
 
   @@unique([identifier, token])
 }
 
 // Email verification OTPs
+// 一种是用户输入邮件里的验证码
 model EmailVerificationToken {
   identifier String
   token      String   @unique

@@ -1,82 +1,84 @@
+// 疑问
+// - 为什么把这个支付相关的放在这个project当中
 model Project {
-  id               String  @id @default(cuid())
-  name             String
-  slug             String  @unique
-  logo             String?
-  inviteCode       String? @unique
-  defaultProgramId String? @unique // default affiliate program ID for the workspace
+  id               String  @id @default(cuid()) // 这个 workspace 记录自己的主键
+  name             String // workspace 名称
+  slug             String  @unique // workspace 的唯一标识，常用于 URL
+  logo             String? // workspace logo
+  inviteCode       String? @unique // 邀请加入 workspace 的邀请码
+  defaultProgramId String? @unique // workspace 默认的 affiliate program ID 联盟推广计划,合作伙伴计划...
 
-  plan              String    @default("free")
-  planTier          Int       @default(1)
-  stripeId          String?   @unique // Stripe subscription ID
-  billingCycleStart Int // day of the month when the billing cycle starts
-  paymentFailedAt   DateTime?
-  invoicePrefix     String?   @unique // prefix used to generate unique invoice numbers (for Dub Payouts)
+  plan              String    @default("free") // 当前套餐名称
+  planTier          Int       @default(1) // 套餐等级
+  stripeId          String?   @unique // Stripe 订阅 ID stripe是一个第三方支付平台 (订阅ID 管理这个 workspace自己的套餐付费)
+  billingCycleStart Int // 账单周期每月从哪一天开始
+  paymentFailedAt   DateTime? // 最近一次支付失败时间  用来限制功能,发提醒,催付款,降级套餐
+  invoicePrefix     String?   @unique // 发票编号前缀（用于 Dub Payouts）
 
-  stripeConnectId String? @unique // for Stripe Integration
-  shopifyStoreId  String? @unique // for Shopify Integration
+  stripeConnectId String? @unique // Stripe 集成相关 ID  用来处理“收款/分账/打款”这类连接型支付账户能力
+  shopifyStoreId  String? @unique // Shopify 店铺 ID
 
-  totalLinks  Int @default(0) // Total number of links in the workspace
-  totalClicks Int @default(0) // Total number of clicks in the workspace
+  totalLinks  Int @default(0) //  这个 workspace 一共创建了多少条短链
+  totalClicks Int @default(0) //这个 workspace 的所有短链累计一共被点击了多少次
 
-  usage                Int   @default(0)
-  usageLimit           Int   @default(1000)
-  linksUsage           Int   @default(0)
-  linksLimit           Int   @default(25)
-  payoutsUsage         Int   @default(0)
-  payoutsLimit         Int   @default(0)
-  payoutFee            Float @default(0.05) // processing fee (in decimals) for partner payouts
-  payoutFeeWaiverLimit Int   @default(0) // amount in cents for which the payout fee will be waived
-  payoutFeeWaiverUsage Int   @default(0) // how much of payoutFeeWaiverLimit has been used
+  usage                Int   @default(0) // 当前整体用量
+  usageLimit           Int   @default(1000) // 整体用量上限
+  linksUsage           Int   @default(0) // 短链使用量
+  linksLimit           Int   @default(25) // 短链数量上限
+  payoutsUsage         Int   @default(0) // payout 使用量
+  payoutsLimit         Int   @default(0) // payout 上限
+  payoutFee            Float @default(0.05) // partner payout 手续费比例
+  payoutFeeWaiverLimit Int   @default(0) // 免手续费额度上限（分）
+  payoutFeeWaiverUsage Int   @default(0) // 已使用的免手续费额度（分）
 
-  domainsLimit        Int @default(3)
-  tagsLimit           Int @default(5)
-  foldersUsage        Int @default(0)
-  foldersLimit        Int @default(0)
-  groupsLimit         Int @default(0)
-  usersLimit          Int @default(1)
-  aiUsage             Int @default(0)
-  aiLimit             Int @default(10)
-  networkInvitesLimit Int @default(0)
+  domainsLimit        Int @default(3) // 可绑定域名数量上限
+  tagsLimit           Int @default(5) // tag 数量上限
+  foldersUsage        Int @default(0) // folder 当前使用量
+  foldersLimit        Int @default(0) // folder 数量上限
+  groupsLimit         Int @default(0) // group 数量上限
+  usersLimit          Int @default(1) // 成员数量上限
+  aiUsage             Int @default(0) // AI 功能当前使用量
+  aiLimit             Int @default(10) // AI 功能使用上限
+  networkInvitesLimit Int @default(0) // network 邀请数量上限  更贴近业务可以理解成：可邀请进入某个合作网络/伙伴网络的人数上限
 
-  referralLinkId  String? @unique
-  referredSignups Int     @default(0)
+  referralLinkId  String? @unique // 推荐链接 ID
+  referredSignups Int     @default(0) // 通过推荐带来的注册数
 
-  store            Json? // General key-value store for things like persisting toggles, dismissing popups, etc.
-  allowedHostnames Json?
-  publishableKey   String? @unique // for the client-side publishable key
+  store            Json? // 通用键值配置存储
+  allowedHostnames Json? // 允许使用的 hostnames
+  publishableKey   String? @unique // 前端可用的 publishable key
 
-  conversionEnabled      Boolean @default(false) // Whether to enable conversion tracking for links by default
-  webhookEnabled         Boolean @default(false)
-  dotLinkClaimed         Boolean @default(false)
-  fastDirectDebitPayouts Boolean @default(false)
+  conversionEnabled      Boolean @default(false) // 是否默认开启链接转化追踪  比如用户点了短链后，又发生了：注册 ,下单
+  webhookEnabled         Boolean @default(false) // 是否启用 webhook   当系统里发生某件事时，自动通知别的系统
+  dotLinkClaimed         Boolean @default(false) // 是否已领取 .link 相关能力/资源
+  fastDirectDebitPayouts Boolean @default(false) // 是否启用快速直接借记 payout
 
-  ssoEmailDomain   String?   @unique
-  ssoEnforcedAt    DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  usageLastChecked DateTime  @default(now())
+  ssoEmailDomain   String?   @unique // SSO 绑定的邮箱域名  sso single sign-on 单点登录
+  ssoEnforcedAt    DateTime? // 从什么时候开始强制 SSO   而是从这个时间起，可能不再允许普通密码登录
+  createdAt        DateTime  @default(now()) // workspace 创建时间
+  updatedAt        DateTime  @updatedAt // workspace 更新时间
+  usageLastChecked DateTime  @default(now()) // 最近一次检查 usage 的时间
 
-  users                 ProjectUsers[]
-  invites               ProjectInvite[]
-  sentEmails            SentEmail[]
-  links                 Link[]
-  domains               Domain[]
-  tags                  Tag[]
-  programs              Program[]
-  invoices              Invoice[]
-  customers             Customer[]
-  defaultDomains        DefaultDomains[]
-  restrictedTokens      RestrictedToken[]
-  oAuthCodes            OAuthCode[]
-  integrations          Integration[] // Integrations workspace published
-  installedIntegrations InstalledIntegration[] // Integrations workspace installed
-  webhooks              Webhook[]
-  folders               Folder[]
-  registeredDomains     RegisteredDomain[]
-  dashboards            Dashboard[]
-  utmTemplates          UtmTemplate[]
-  yearInReviews         YearInReview[]
+  users                 ProjectUsers[] // workspace 成员关系记录
+  invites               ProjectInvite[] // workspace 邀请记录
+  sentEmails            SentEmail[] // workspace 发送过的邮件记录
+  links                 Link[] // workspace 下的短链
+  domains               Domain[] // workspace 绑定的域名
+  tags                  Tag[] // workspace 下的标签
+  programs              Program[] // workspace 下的 programs
+  invoices              Invoice[] // workspace 发票记录
+  customers             Customer[] // workspace 客户记录
+  defaultDomains        DefaultDomains[] // workspace 默认域名配置
+  restrictedTokens      RestrictedToken[] // workspace 下的受限 API token
+  oAuthCodes            OAuthCode[] // workspace 授权产生的 OAuth code
+  integrations          Integration[] // workspace 发布的集成应用
+  installedIntegrations InstalledIntegration[] // workspace 安装的集成记录
+  webhooks              Webhook[] // workspace 的 webhook 配置
+  folders               Folder[] // workspace 下的 folders
+  registeredDomains     RegisteredDomain[] // workspace 注册过的域名
+  dashboards            Dashboard[] // workspace 下的 dashboards/分享页
+  utmTemplates          UtmTemplate[] // workspace 下的 UTM 模板
+  yearInReviews         YearInReview[] // workspace 的年度回顾记录
 
   @@index(usageLastChecked(sort: Asc))
 }
