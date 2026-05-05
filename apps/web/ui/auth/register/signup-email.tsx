@@ -34,6 +34,8 @@ export const SignUpEmail = () => {
     getValues,
   } = form;
 
+  //“把这个服务端函数包装成一个前端可控的 action controller”
+  // 这个就是 next-safe-action的最终消费方式
   const { executeAsync, isPending } = useAction(sendOtpAction, {
     onSuccess: () => {
       setEmail(getValues("email"));
@@ -96,6 +98,7 @@ export const SignUpEmail = () => {
               error={errors.password?.message}
               minLength={8}
             />
+            {/* 现在把这个 form 通过 FormProvider 提供给子组件 */}
             <FormProvider {...form}>
               <PasswordRequirements />
             </FormProvider>

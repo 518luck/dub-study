@@ -32,7 +32,7 @@ export const RegisterProvider: React.FC<
     <RegisterContext.Provider
       value={{
         email,
-        password,
+        password, // 密码主要在验证密码格式的时候被消费
         step,
         setEmail,
         setPassword,

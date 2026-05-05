@@ -27,10 +27,11 @@ export const VerifyEmailForm = () => {
       toast.success("Account created! Redirecting to dashboard...");
       setIsRedirecting(true);
 
+      //使用账号密码登录方式
       const response = await signIn("credentials", {
         email,
-        password,
-        redirect: false,
+        password, //把当前邮箱和密码传进去
+        redirect: false, //登录后不要让认证库自己跳转，改成由当前代码手动控制跳转
       });
 
       // preserve the next query param if present (and valid)
@@ -71,15 +72,19 @@ export const VerifyEmailForm = () => {
       >
         <div>
           <OTPInput
-            maxLength={6}
-            value={code}
+            maxLength={6} //6 位验证码
+            value={code} //受控值，数据来自状态
             onChange={(code) => {
+              //每次输入时同步到 code
               setIsInvalidCode(false);
               setCode(code);
             }}
-            autoFocus={!isMobile}
+            autoFocus={!isMobile} //非移动端自动聚焦
             render={({ slots }) => (
               <div className="flex w-full items-center justify-between">
+                {/* - char：这一格当前输入的字符
+                      - isActive：这一格当前是否聚焦
+                      - hasFakeCaret：这一格是否显示伪光标 */}
                 {slots.map(({ char, isActive, hasFakeCaret }, idx) => (
                   <div
                     key={idx}
@@ -102,6 +107,7 @@ export const VerifyEmailForm = () => {
               </div>
             )}
             onComplete={() => {
+              //输满 6 位后自动提交
               executeAsync({ email, password, code });
             }}
           />
