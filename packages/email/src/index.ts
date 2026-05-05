@@ -4,12 +4,15 @@ import { sendViaNodeMailer } from "./send-via-nodemailer";
 import { sendBatchEmailViaResend, sendEmailViaResend } from "./send-via-resend";
 
 // 自定义发送方式
+// 统一邮件发送入口
 export const sendEmail = async (opts: ResendEmailOptions) => {
+  // 优先走 Resend 发送
   if (resend) {
     return await sendEmailViaResend(opts);
   }
 
   // Fallback to SMTP if Resend is not configured
+  //如果没配 Resend，就回退到 SMTP 发送
   const smtpConfigured = Boolean(
     process.env.SMTP_HOST && process.env.SMTP_PORT,
   );
@@ -17,10 +20,10 @@ export const sendEmail = async (opts: ResendEmailOptions) => {
   if (smtpConfigured) {
     const { to, subject, text, react } = opts;
     return await sendViaNodeMailer({
-      to,
-      subject,
-      text,
-      react,
+      to, //收件人
+      subject, //主题
+      text, //纯文本内容
+      react, //React 组件（用于生成 HTML 内容）
     });
   }
 
@@ -29,6 +32,7 @@ export const sendEmail = async (opts: ResendEmailOptions) => {
   );
 };
 
+// 批量发送邮件
 export const sendBatchEmail = async (
   emails: ResendBulkEmailOptions,
   options?: { idempotencyKey?: string },

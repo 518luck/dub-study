@@ -54,8 +54,8 @@ export const SignUpEmail = () => {
       const { email, password } = getValues();
 
       if (email && !password && !showPassword) {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); // 阻止表单默认提交行为
+        e.stopPropagation(); // 阻止事件继续冒泡
         setShowPassword(true);
         return;
       }

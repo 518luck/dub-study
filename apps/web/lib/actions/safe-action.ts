@@ -7,13 +7,14 @@ import { logger } from "../axiom/server";
 import { PlanProps } from "../types";
 
 export const actionClient = createSafeActionClient({
+  //只要服务端出错 都先走这套统一错误处理逻辑
   handleServerError: async (e) => {
     console.error("Server action error:", e);
 
     // Send error to Axiom
-    logger.error(e.message, e);
-    after(logger.flush());
-
+    logger.error(e.message, e); //上报到 Axiom
+    after(logger.flush()); //把刚才记下来的日志真正提交给日志系统。
+    // after  是 Next.js 的一个函数，用来把一段工作安排到 响应结束之后 再执行
     if (e instanceof Error) {
       return e.message;
     }
@@ -22,6 +23,7 @@ export const actionClient = createSafeActionClient({
   },
 });
 
+// 添加中间件
 export const authUserActionClient = actionClient.use(async ({ next }) => {
   const session = await getSession();
 
