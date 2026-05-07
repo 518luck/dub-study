@@ -1,3 +1,4 @@
+// 资源名清单
 export const RESOURCE_KEYS = [
   "links",
   "workspaces",
@@ -12,6 +13,7 @@ export const RESOURCE_KEYS = [
 
 export type ResourceKey = (typeof RESOURCE_KEYS)[number];
 
+// 这个是在给“资源”补充元信息。
 export const RESOURCES: {
   name: string;
   key: ResourceKey;

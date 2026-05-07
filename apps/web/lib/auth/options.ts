@@ -140,7 +140,7 @@ export const authOptions: NextAuthOptions = {
       },
       allowDangerousEmailAccountLinking: true,
     },
-    // saml-idp  是 IdP-initiated 登录回调后的承接入口。
+    // saml-idp  是 IdP-initiated 登录回调后的承接入口。 外部的sso之类的
     CredentialsProvider({
       id: "saml-idp", // 这个 provider 的唯一标识；前端/NextAuth 会用它区分这是哪一种登录方式
       name: "IdP Login", // 这个 provider 的显示名称，通常用于登录页按钮或内部标识
@@ -215,33 +215,33 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
-    // Sign in with email and password
+    // Sign in with email and password 邮箱和密码
     CredentialsProvider({
-      id: "credentials",
-      name: "Dub.co",
-      type: "credentials",
+      id: "credentials", // 这个 provider 的唯一标识，前端 signIn("credentials") 用的就是它
+      name: "Dub.co", // 展示名称，通常给 UI、日志或内部区分用
+      type: "credentials", // 表示这是“自定义凭证登录”类型，不是 OAuth
       credentials: {
-        email: { type: "email" },
-        password: { type: "password" },
+        email: { type: "email" }, // 登录表单里要收的邮箱字段
+        password: { type: "password" }, // 登录表单里要收的密码字段
       },
       async authorize(credentials, req) {
         if (!credentials) {
-          throw new Error("no-credentials");
+          throw new Error("no-credentials"); // 一个字段都没收到，直接拒绝登录
         }
 
-        const { email, password } = credentials;
+        const { email, password } = credentials; // 从用户提交的凭证中取出邮箱和密码
 
         if (!email || !password) {
-          throw new Error("no-credentials");
+          throw new Error("no-credentials"); // 邮箱或密码缺失，不继续校验
         }
 
         if (!skipAuthThrottling) {
           const { success } = await ratelimit(5, "1 m").limit(
-            `login-attempts:${email}`,
+            `login-attempts:${email}`, // 按邮箱做登录限流，防止短时间内暴力尝试
           );
 
           if (!success) {
-            throw new Error("too-many-login-attempts");
+            throw new Error("too-many-login-attempts"); // 1 分钟内尝试次数过多
           }
         }
 
@@ -249,64 +249,64 @@ export const authOptions: NextAuthOptions = {
         const ssoEnforced = await isSamlEnforcedForEmailDomain(email);
 
         if (ssoEnforced) {
-          throw new Error("require-saml-sso");
+          throw new Error("require-saml-sso"); // 这个邮箱域名被要求走企业 SSO，不能走密码登录
         }
 
         const user = await prisma.user.findUnique({
-          where: { email },
+          where: { email }, // 用邮箱查本地用户
           select: {
-            id: true,
-            passwordHash: true,
-            name: true,
-            email: true,
-            image: true,
-            invalidLoginAttempts: true,
-            emailVerified: true,
+            id: true, // 登录成功后返回给 session 的用户 ID
+            passwordHash: true, // 用来和用户输入的密码做比对
+            name: true, // 登录成功后返回用户名
+            email: true, // 登录成功后返回邮箱
+            image: true, // 登录成功后返回头像
+            invalidLoginAttempts: true, // 当前累计输错密码次数
+            emailVerified: true, // 邮箱是否已经验证过
           },
         });
 
         if (!user || !user.passwordHash) {
-          throw new Error("invalid-credentials");
+          throw new Error("invalid-credentials"); // 用户不存在，或这个账号没有设置密码
         }
 
         if (exceededLoginAttemptsThreshold(user)) {
-          throw new Error("exceeded-login-attempts");
+          throw new Error("exceeded-login-attempts"); // 已达到锁定阈值，不再允许继续尝试
         }
 
         const passwordMatch = await validatePassword({
-          password,
-          passwordHash: user.passwordHash,
+          password, // 用户刚输入的明文密码
+          passwordHash: user.passwordHash, // 数据库里存的密码哈希
         });
 
         if (!passwordMatch) {
           const exceededLoginAttempts = exceededLoginAttemptsThreshold(
-            await incrementLoginAttempts(user),
+            await incrementLoginAttempts(user), // 密码错误时，把输错次数 +1
           );
 
           if (exceededLoginAttempts) {
-            throw new Error("exceeded-login-attempts");
+            throw new Error("exceeded-login-attempts"); // 这次输错后已经触发锁定
           } else {
-            throw new Error("invalid-credentials");
+            throw new Error("invalid-credentials"); // 还没锁定，但这次密码就是错的
           }
         }
 
         if (!user.emailVerified) {
-          throw new Error("email-not-verified");
+          throw new Error("email-not-verified"); // 密码对了，但邮箱还没完成验证
         }
 
         // Reset invalid login attempts
         await prisma.user.update({
-          where: { id: user.id },
+          where: { id: user.id }, // 登录成功后按用户 ID 更新
           data: {
-            invalidLoginAttempts: 0,
+            invalidLoginAttempts: 0, // 成功登录后，把之前累计的输错次数清零
           },
         });
 
         return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
+          id: user.id, // NextAuth 会把它当成当前登录用户的唯一标识
+          name: user.name, // 返回给 session / 前端的名字
+          email: user.email, // 返回给 session / 前端的邮箱
+          image: user.image, // 返回给 session / 前端的头像
         };
       },
     }),

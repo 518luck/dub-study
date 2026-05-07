@@ -1,5 +1,6 @@
 import { WorkspaceRole } from "@dub/prisma/client";
 
+// 权限动作清单  资源.动作
 export const PERMISSION_ACTIONS = [
   "workspaces.read",
   "workspaces.write",
@@ -30,6 +31,7 @@ export const PERMISSION_ACTIONS = [
 
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
 
+// 角色权限映射表
 export const ROLE_PERMISSIONS: {
   action: PermissionAction;
   description: string;
