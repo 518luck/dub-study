@@ -26,6 +26,7 @@ function SignUp() {
           Create your Dub account
         </h3>
         <div className="mt-8">
+          {/* 因为作者在ee其他平台也用了这个signupform,所以把这个方法单独拿出来了 */}
           <SignUpForm />
         </div>
         <p className="mt-6 text-center text-sm font-medium text-neutral-500">
