@@ -75,14 +75,14 @@ export const SignUpEmail = () => {
             Email
           </span>
           <Input
-            type="email"
-            placeholder="panic@thedis.co"
-            autoComplete="email"
-            required
-            readOnly={!errors.email && lockEmail}
-            autoFocus={!isMobile && !showPassword && !lockEmail}
-            {...register("email")}
-            error={errors.email?.message}
+            type="email" // 原生属性：声明这是邮箱输入框，浏览器会做基础邮箱格式校验。
+            placeholder="panic@thedis.co" // 原生属性：输入框为空时显示的占位提示。
+            autoComplete="email" // 原生属性：提示浏览器/密码管理器可自动填充邮箱。
+            required // 原生属性：提交表单前要求这个字段不能为空。
+            readOnly={!errors.email && lockEmail} // 原生属性：满足条件时禁止用户编辑邮箱。
+            autoFocus={!isMobile && !showPassword && !lockEmail} // 原生属性：满足条件时页面加载后自动聚焦到该输入框。
+            {...register("email")} // react-hook-form：注册 email 字段，并注入 name、onChange、onBlur、ref 等属性。
+            error={errors.email?.message} // @dub/ui Input 自定义属性：显示错误样式和错误文案。
           />
         </label>
         {showPassword && (

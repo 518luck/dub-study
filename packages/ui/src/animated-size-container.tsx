@@ -18,9 +18,7 @@ type AnimatedSizeContainerProps = PropsWithChildren<{
 }> &
   Omit<ComponentPropsWithoutRef<typeof motion.div>, "animate" | "children">;
 
-/**
- * A container with animated width and height (each optional) based on children dimensions
- */
+// 根据子元素尺寸变化，按需动画过渡容器的宽度和高度。
 const AnimatedSizeContainer: ForwardRefExoticComponent<
   AnimatedSizeContainerProps & RefAttributes<HTMLDivElement>
 > = forwardRef<HTMLDivElement, AnimatedSizeContainerProps>(
@@ -36,6 +34,7 @@ const AnimatedSizeContainer: ForwardRefExoticComponent<
     forwardedRef,
   ) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    // 监听内部内容尺寸，外层容器用这个尺寸做动画。
     const resizeObserverEntry = useResizeObserver(containerRef);
     const hasMeasuredRef = useRef(false);
 
@@ -50,18 +49,24 @@ const AnimatedSizeContainer: ForwardRefExoticComponent<
       hasMeasuredRef.current = true;
     }
 
+    // 首次测量不做动画，避免组件挂载时从 0 抖到目标尺寸。
     const effectiveTransition =
       transition ?? (isFirstMeasurement ? { duration: 0 } : defaultTransition);
 
     return (
       <motion.div
+        // 把外部传进来的 ref 挂到真正负责动画的外层容器上。
         ref={forwardedRef}
+        // overflow-hidden 用来隐藏尺寸动画过程中溢出的内容。
         className={cn("overflow-hidden", className)}
+        // 根据开启的 width/height 选项，把外层容器动画到测量出的内容尺寸。
         animate={{
           width: width ? measuredWidth ?? "auto" : "auto",
           height: height ? measuredHeight ?? "auto" : "auto",
         }}
+        // 控制尺寸变化的动画方式；首次测量会禁用动画。
         transition={effectiveTransition}
+        // 透传其它 motion.div 支持的属性，比如 initial、style、onClick。
         {...rest}
       >
         <div

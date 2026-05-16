@@ -11,12 +11,14 @@ export const SignUpForm = ({
   methods?: ("email" | "google" | "github")[];
 }) => {
   return (
-    <AnimatedSizeContainer height>
-      <div className="flex flex-col gap-3 p-1">
-        {methods.includes("email") && <SignUpEmail />}
-        {methods.length && <AuthMethodsSeparator />}
-        <SignUpOAuth methods={methods} />
-      </div>
-    </AnimatedSizeContainer>
+    <>
+      <AnimatedSizeContainer height>
+        <div className="flex flex-col gap-3 p-1">
+          {methods.includes("email") && <SignUpEmail />}
+          {methods.length && <AuthMethodsSeparator />}
+          <SignUpOAuth methods={methods} />
+        </div>
+      </AnimatedSizeContainer>
+    </>
   );
 };

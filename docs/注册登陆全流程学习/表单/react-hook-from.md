@@ -12,7 +12,7 @@
 
 ## 一个最小例子
 
-```tsx
+```ts
 import { useForm } from "react-hook-form";
 
 type FormValues = {
@@ -153,6 +153,7 @@ import { Controller, useForm } from "react-hook-form";
    - 后端返回错误
 
    不要以为 `errors` 一定只来自前端。
+
 7. 条件渲染字段时，注意字段是否保留。  
    字段卸载后值要不要保留，要结合配置和业务看，不然容易出现“UI 消失了但值还在”这种情况。
 

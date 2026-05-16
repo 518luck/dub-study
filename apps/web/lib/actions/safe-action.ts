@@ -7,6 +7,10 @@ import { logger } from "../axiom/server";
 import { PlanProps } from "../types";
 
 export const actionClient = createSafeActionClient({
+  // defineMetadataSchema, 定义 action metadata 的 schema。这个项目目前没用。
+  // handleServerError,  服务端 action 抛错时统一处理。
+  // defaultValidationErrorsShape,  控制校验错误默认长什么样。
+  // throwValidationErrors, 控制校验失败时，是返回 validationErrors，还是直接 throw
   //只要服务端出错 都先走这套统一错误处理逻辑
   handleServerError: async (e) => {
     console.error("Server action error:", e);
@@ -24,6 +28,7 @@ export const actionClient = createSafeActionClient({
 });
 
 // 添加中间件
+// 只要求用户已登录。
 export const authUserActionClient = actionClient.use(async ({ next }) => {
   const session = await getSession();
 
@@ -39,6 +44,7 @@ export const authUserActionClient = actionClient.use(async ({ next }) => {
 });
 
 // Workspace users
+// 要求用户已登录，并且属于某个 workspace。
 export const authActionClient = actionClient.use(
   async ({ next, clientInput }) => {
     const session = await getSession();
@@ -91,6 +97,7 @@ export const authActionClient = actionClient.use(
 );
 
 // Partner users
+// 要求用户已登录，并且属于某个 partner。
 export const authPartnerActionClient = actionClient.use(async ({ next }) => {
   const session = await getSession();
 
