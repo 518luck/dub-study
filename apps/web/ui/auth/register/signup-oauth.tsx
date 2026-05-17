@@ -20,7 +20,7 @@ export const SignUpOAuth = ({
   const [clickedGithub, setClickedGithub] = useState(false);
 
   useEffect(() => {
-    // when leave page, reset state
+    // when leave page, reset stat e
     return () => {
       setClickedGoogle(false);
       setClickedGithub(false);

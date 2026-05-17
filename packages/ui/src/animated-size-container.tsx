@@ -1,15 +1,16 @@
 import { cn } from "@dub/utils";
 import { motion } from "motion/react";
 import {
-  ComponentPropsWithoutRef,
-  ForwardRefExoticComponent,
-  PropsWithChildren,
-  RefAttributes,
-  forwardRef,
-  useRef,
+  type ComponentPropsWithoutRef, // 提取某个组件/元素的 props 类型，但不包含 ref；这里用来继承 motion.div 的属性类型。
+  type ForwardRefExoticComponent, // React.forwardRef 返回的组件类型；这里用来给 AnimatedSizeContainer 标注完整组件类型。
+  type PropsWithChildren, // 给 props 类型自动加上 children 属性。
+  type RefAttributes, // 给组件类型补充 ref 属性类型；这里表示外部 ref 指向 HTMLDivElement。
+  forwardRef, // 创建可以接收外部 ref 的组件，并把 ref 转发到内部 DOM/motion 元素上。
+  useRef, // 创建跨渲染保持不变的引用；这里用于保存 DOM 节点和是否已完成首次测量。
 } from "react";
 import { useResizeObserver } from "./hooks";
 
+// 默认动画配置
 const defaultTransition = { type: "spring" as const, duration: 0.3 };
 
 type AnimatedSizeContainerProps = PropsWithChildren<{
@@ -18,9 +19,31 @@ type AnimatedSizeContainerProps = PropsWithChildren<{
 }> &
   Omit<ComponentPropsWithoutRef<typeof motion.div>, "animate" | "children">;
 
+// forwardRef 的基础语法是：
+
+// import { forwardRef } from "react";
+
+// const MyComponent = forwardRef<RefType, PropsType>((props, ref) => {
+//   return (
+//     <div ref={ref}>
+//       ...
+//     </div>
+//   );
+// });
+
+// 两个泛型：
+
+// forwardRef<RefType, PropsType>
+
+// 含义是：
+
+// RefType   ref 最终指向什么
+// PropsType 组件接收什么 props
+
 // 根据子元素尺寸变化，按需动画过渡容器的宽度和高度。
 const AnimatedSizeContainer: ForwardRefExoticComponent<
   AnimatedSizeContainerProps & RefAttributes<HTMLDivElement>
+  // forwardRef 是为了让函数组件支持标准的 ref 写法，并且明确把这个 ref 转发到组件内部某个真实DOM 或子组件上。
 > = forwardRef<HTMLDivElement, AnimatedSizeContainerProps>(
   (
     {
@@ -33,6 +56,7 @@ const AnimatedSizeContainer: ForwardRefExoticComponent<
     }: AnimatedSizeContainerProps,
     forwardedRef,
   ) => {
+    // DOM ref
     const containerRef = useRef<HTMLDivElement>(null);
     // 监听内部内容尺寸，外层容器用这个尺寸做动画。
     const resizeObserverEntry = useResizeObserver(containerRef);
@@ -40,6 +64,8 @@ const AnimatedSizeContainer: ForwardRefExoticComponent<
 
     const measuredWidth = resizeObserverEntry?.contentRect?.width;
     const measuredHeight = resizeObserverEntry?.contentRect?.height;
+
+    // 这个组件是否已经完成过第一次尺寸测量？
     const isFirstMeasurement =
       (width ? measuredWidth != null : true) &&
       (height ? measuredHeight != null : true) &&
@@ -60,6 +86,7 @@ const AnimatedSizeContainer: ForwardRefExoticComponent<
         // overflow-hidden 用来隐藏尺寸动画过程中溢出的内容。
         className={cn("overflow-hidden", className)}
         // 根据开启的 width/height 选项，把外层容器动画到测量出的内容尺寸。
+        // measuredWidth 和 measuredHeight 是通过 useResizeObserver(containerRef) 测出来的子内容真实尺寸。
         animate={{
           width: width ? measuredWidth ?? "auto" : "auto",
           height: height ? measuredHeight ?? "auto" : "auto",
