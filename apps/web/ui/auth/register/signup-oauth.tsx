@@ -27,6 +27,19 @@ export const SignUpOAuth = ({
     };
   }, []);
 
+  // 前端点击按钮
+  //   ↓
+  // 调用 NextAuth 的 signIn("google")
+  //   ↓
+  // 浏览器跳到 /api/auth/signin/google
+  //   ↓
+  // NextAuth 再把用户跳到 Google 授权页
+  //   ↓
+  // Google 登录成功后回调到 /api/auth/callback/google
+  //   ↓
+  // NextAuth 后端处理 code/state，创建用户、Account、Session
+  //   ↓
+  // 最后跳到 callbackUrl / redirectTo
   return (
     <>
       {methods.includes("google") && (
