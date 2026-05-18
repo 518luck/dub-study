@@ -29,17 +29,25 @@ export function isValidInternalRedirect({
   }
 }
 
-//  如果这个跳转路径安全，就返回它；如果不安全，就返回 null。
+// 定义一个函数，用来拿到“安全的站内重定向路径”。
 export function getValidInternalRedirectPath({
+  // 从参数对象里取出 redirectPath，也就是外部传进来的跳转目标。
   redirectPath,
+  // 从参数对象里取出 currentUrl，也就是当前页面的完整 URL。
   currentUrl,
 }: {
+  // redirectPath 是可选的；它可以是字符串、null，也可以不传。
   redirectPath?: string | null;
+  // currentUrl 必须传；它可以是字符串，也可以是 URL 对象。
   currentUrl: string | URL;
+  // 函数返回值：如果 redirectPath 安全，就返回字符串；否则返回 null。
 }): string | null {
+  // 如果没有传 redirectPath，或者它是空字符串 / null / undefined，就直接返回 null。
   if (!redirectPath) {
     return null;
   }
+  // 调用 isValidInternalRedirect 检查 redirectPath 是否是安全的站内跳转。
   const valid = isValidInternalRedirect({ redirectPath, currentUrl });
+  // 如果 valid 是 true，返回原始 redirectPath；否则返回 null。
   return valid ? redirectPath : null;
 }
