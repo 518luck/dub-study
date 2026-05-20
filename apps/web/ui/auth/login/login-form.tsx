@@ -51,15 +51,15 @@ export const errorCodes = {
 
 //  登录表单状态共享中心
 export const LoginFormContext = createContext<{
-  authMethod: AuthMethod | undefined;
-  setAuthMethod: Dispatch<SetStateAction<AuthMethod | undefined>>;
-  clickedMethod: AuthMethod | undefined;
-  showPasswordField: boolean;
-  showSSOOption: boolean;
-  setShowPasswordField: Dispatch<SetStateAction<boolean>>;
-  setClickedMethod: Dispatch<SetStateAction<AuthMethod | undefined>>;
-  setLastUsedAuthMethod: Dispatch<SetStateAction<AuthMethod | undefined>>;
-  setShowSSOOption: Dispatch<SetStateAction<boolean>>;
+  authMethod: AuthMethod | undefined; // 当前选中的登录方式
+  setAuthMethod: Dispatch<SetStateAction<AuthMethod | undefined>>; // 设置当前登录方式
+  clickedMethod: AuthMethod | undefined; // 用户刚刚点击的登录方式（用于防重复点击）
+  showPasswordField: boolean; // 是否显示密码输入框
+  showSSOOption: boolean; // 是否显示 SSO 登录选项
+  setShowPasswordField: Dispatch<SetStateAction<boolean>>; // 控制密码框显示/隐藏
+  setClickedMethod: Dispatch<SetStateAction<AuthMethod | undefined>>; // 设置点击的登录方式
+  setLastUsedAuthMethod: Dispatch<SetStateAction<AuthMethod | undefined>>; // 设置上次使用的登录方式（持久化到 localStorage）
+  setShowSSOOption: Dispatch<SetStateAction<boolean>>; // 控制 SSO 选项显示/隐藏
 }>({
   authMethod: undefined,
   setAuthMethod: () => {},
