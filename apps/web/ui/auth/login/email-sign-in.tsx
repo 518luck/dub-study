@@ -38,9 +38,10 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
     <>
       <form
         onSubmit={async (e) => {
+          // 阻止浏览器默认提交表单，改为由当前 React 逻辑控制登录流程。
           e.preventDefault();
 
-          // Check if the user can enter a password, and if so display the field
+          // 第一次提交时只检查邮箱对应的账号状态，决定下一步展示什么。
           if (!showPasswordField) {
             const result = await executeAsync({ email });
 
@@ -50,6 +51,7 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
 
             const { accountExists, hasPassword, requireSAML } = result.data;
 
+            // 如果该邮箱域名强制使用企业 SSO，就不允许继续走邮箱/密码登录。
             if (requireSAML) {
               setClickedMethod(undefined);
               toast.error(
@@ -58,11 +60,13 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
               return;
             }
 
+            // 账号存在且设置过密码时，先展示密码框，让用户选择密码登录或邮箱登录。
             if (accountExists && hasPassword) {
               setShowPasswordField(true);
               return;
             }
 
+            // 账号不存在时终止登录流程，避免继续调用 NextAuth。
             if (!accountExists) {
               setClickedMethod(undefined);
               toast.error("No account found with that email address.");
@@ -70,8 +74,10 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
             }
           }
 
+          // 走到这里说明可以发起登录：可能是密码登录，也可能是邮箱 magic link 登录。
           setClickedMethod("email");
 
+          // 登录前再查一次账号状态，避免用户停留页面期间账号状态发生变化。
           const result = await executeAsync({ email });
 
           if (!result?.data) {
@@ -86,8 +92,10 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
             return;
           }
 
+          // 输入了密码且账号有密码哈希时走 credentials；否则走 email magic link。
           const provider = password && hasPassword ? "credentials" : "email";
 
+          // 调用 NextAuth 发起登录；redirect=false 表示由当前代码处理成功/失败和跳转。
           const response = await signIn(provider, {
             email,
             redirect: false,
@@ -110,8 +118,10 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
             return;
           }
 
+          // 将本次成功使用的登录方式记录下来，供后续登录页默认展示使用。
           setLastUsedAuthMethod("email");
 
+          // 邮箱登录只发送 magic link，不直接跳转。
           if (provider === "email") {
             toast.success("Email sent - check your inbox!");
             setEmail("");
@@ -119,6 +129,7 @@ export const EmailSignIn = ({ next }: { next?: string }) => {
             return;
           }
 
+          // 密码登录成功后跳转到 callbackUrl 或默认工作区页面。
           if (provider === "credentials") {
             router.push(response?.url || finalNext || "/workspaces");
           }
