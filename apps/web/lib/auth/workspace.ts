@@ -22,6 +22,7 @@ import { rateLimitRequest } from "./rate-limit-request";
 import { TokenCacheItem, tokenCache } from "./token-cache";
 import { Session, getSession } from "./utils";
 
+// 普通网页登录用户的 API 限流配置；API key 请求会根据 workspace 套餐动态计算。
 const RATE_LIMIT_FOR_SESSIONS = {
   api: {
     limit: 600,
@@ -55,12 +56,12 @@ interface WithWorkspaceHandler {
   }): Promise<Response>;
 }
 
-// 基础结构 export const wfuncont=(handler:typehandler,{options}:{typeoptions}={})=>{return xx()}
-// 一个函数的返回值是另一个函数 = (先配置,再执行)
+// API Route 的 workspace 级鉴权包装器。
+// 使用方式：withWorkspace(业务 handler, 访问条件)，先统一做身份、workspace、权限、套餐、限流检查，再执行 handler。
 export const withWorkspace = (
-  handler: WithWorkspaceHandler, // 业务处理函数
+  handler: WithWorkspaceHandler, // 真正的业务处理函数，只有前面的准入检查全部通过后才会执行。
   {
-    // 表示这个接口允许哪些套餐访问。如果调用方不传，就默认“所有 plan 都允许”。
+    // 这个接口允许哪些套餐访问；不传时默认所有主要套餐都可以访问。
     requiredPlan = [
       "free",
       "pro",
@@ -70,10 +71,13 @@ export const withWorkspace = (
       "business extra",
       "advanced",
       "enterprise",
-    ], // if the action needs a specific plan
+    ],
+    // 这个接口需要的权限点，比如 links.write、folders.read。
     requiredPermissions = [],
+    // 这个接口限定哪些 workspace 角色可以访问，比如只有 owner。
     requiredRoles = [],
-    featureFlag, // if the action needs a specific feature flag
+    // 这个接口是否要求某个 beta / 灰度功能开关已经开启。
+    featureFlag,
   }: {
     requiredPlan?: Array<PlanProps>;
     requiredPermissions?: PermissionAction[];
@@ -86,23 +90,28 @@ export const withWorkspace = (
       req,
       { params: initialParams }: { params: Promise<Record<string, string>> },
     ) => {
-      // Clone the request early so handlers can read the body without cloning
-      // Keep the original for withAxiomBodyLog to read in onSuccess
+      // Request body 通常只能读取一次；这里先 clone 一份给业务 handler 使用，原始请求留给日志包装器读取。
       const clonedReq = req.clone();
 
+      // 路由参数来自动态路由，比如 /api/workspaces/[idOrSlug]。
       const params = (await initialParams) || {};
+      // 查询参数来自 URL，比如 ?workspaceId=xxx。
       const searchParams = getSearchParams(req.url);
 
+      // 如果请求使用 Authorization: Bearer xxx，这里会提取出 xxx 作为 apiKey。
       let apiKey: string | undefined = undefined;
-      // 这里的 headers() 是 Next 提供的动态 API，用来读取当前请求的 header。
+      // Next.js 的动态 API，用来读取当前请求的 headers。
       let requestHeaders = await headers();
+      // 后面会把限流等响应头写到这里，最后随响应返回给客户端。
       let responseHeaders = new Headers();
+      // 先声明 workspace，catch 中也可能用它记录错误日志。
       let workspace: WorkspaceWithUsers | undefined;
 
       try {
-        //1. 先取鉴权信息   这一步是“读取凭证”。
+        // 第一层：读取鉴权凭证。外部 API 调用会把 API key 放在 Authorization header 里。
         const authorizationHeader = requestHeaders.get("Authorization");
         if (authorizationHeader) {
+          // Dub API key 必须使用标准 Bearer 格式：Authorization: Bearer <token>。
           if (!authorizationHeader.startsWith("Bearer ")) {
             throw new DubApiError({
               code: "bad_request",
@@ -110,20 +119,26 @@ export const withWorkspace = (
                 "Misconfigured authorization header. Did you forget to add 'Bearer '? Learn more: https://d.to/auth",
             });
           }
+          // 去掉 Bearer 前缀后，剩下的才是真正的 API key。
           apiKey = authorizationHeader.replace("Bearer ", "");
         }
 
-        //先把后面流程里要用到的几个关键变量声明出来。
-        //这是把请求地址解析成标准 URL 对象。
+        // 把请求地址解析成标准 URL 对象，后面要用 pathname 判断 analytics/events 等接口类型。
         const url = new URL(req.url || "", API_DOMAIN);
 
+        // 后续会把 API key 或 NextAuth session 都统一整理成 session，方便使用 session.user。
         let session: Session | undefined;
+        // workspace 既可能用 id 查询，也可能用 slug 查询。
         let workspaceId: string | undefined;
         let workspaceSlug: string | undefined;
+        // 当前请求最终可用的权限列表：先由 workspace role 推导，restricted token 会再收窄。
         let permissions: PermissionAction[] = [];
+        // API key 对应的 token 记录；普通 session 请求时保持 null。
         let token: TokenCacheItem | null = null;
-        const isRestrictedToken = apiKey?.startsWith("dub_"); // 是否是 restricted(受限) token
+        // 以 dub_ 开头的是 restricted token：它绑定 workspace，并且带 scopes 限制权限范围。
+        const isRestrictedToken = apiKey?.startsWith("dub_");
 
+        // 从路由参数或查询参数里尽量找出 workspace 标识。
         const idOrSlug =
           params?.idOrSlug ||
           searchParams.workspaceId ||
@@ -139,9 +154,9 @@ export const withWorkspace = (
           - 用户仍在使用旧的 personal API key，而不是 workspace API key
         */
         if (!idOrSlug && !isRestrictedToken) {
-          // 特殊情况：匿名创建短链
+          // 特殊情况：匿名创建短链。这个场景不需要 workspace，也不会继续走完整鉴权流程。
           if (
-            // 只有当请求头里带了某个特殊标记，并且当前请求路径正好是 /links 或 /api/links，才认为这是“匿名创建短链”的特殊请求。
+            // 必须同时满足特殊 header 和固定路径，避免任意接口绕过 workspace 鉴权。
             requestHeaders.has("dub-anonymous-link-creation") &&
             ["/links", "/api/links"].includes(req.nextUrl.pathname)
           ) {
@@ -152,14 +167,14 @@ export const withWorkspace = (
               searchParams,
               headers: responseHeaders,
             });
-            // missing authorization header
           } else if (!authorizationHeader) {
+            // 没有 workspace，也没有 API key，无法证明请求身份。
             throw new DubApiError({
               code: "unauthorized",
               message: "Missing Authorization header.",
             });
-            // in case user is still using personal API keys
           } else {
+            // 有 Authorization 但没有 workspace 标识，常见原因是仍在使用旧 personal API key。
             throw new DubApiError({
               code: "not_found",
               message:
@@ -168,7 +183,7 @@ export const withWorkspace = (
           }
         }
 
-        //  把前面拿到的 idOrSlug 进一步判断到底是 workspace id，还是 workspace slug。
+        // 把 idOrSlug 拆成两种查询条件：ws_ 开头当作 workspace id，否则当作 workspace slug。
         if (idOrSlug) {
           if (idOrSlug.startsWith("ws_")) {
             workspaceId = normalizeWorkspaceId(idOrSlug);
@@ -177,35 +192,37 @@ export const withWorkspace = (
           }
         }
 
-        //  如果请求 URL 中包含 /analytics 或 /events，就标记为分析相关的请求。
+        // analytics/events 请求使用更严格的限流策略，并且 free plan 的 API key analytics 会额外被限制。
         const isAnalytics =
           url.pathname.includes("/analytics") ||
           url.pathname.includes("/events");
 
-        //  如果这次请求带了 apiKey，就走 API key 鉴权流程；否则就走普通登录 session 鉴权流程。
+        // 第二层：判断鉴权来源。API key 面向外部程序调用；session 面向网页登录用户。
         if (apiKey) {
+          // 数据库和缓存里不直接使用明文 API key，而是使用 hash 后的 key。
           const hashedKey = await hashToken(apiKey);
+          // 先查 token 缓存，命中时可以避免每次 API 请求都访问数据库。
           const cachedToken = await tokenCache.get({
             hashedKey,
           });
 
           if (!cachedToken) {
-            // prismaArgs
+            // 缓存没有命中时，准备查询数据库的参数。
             const prismaArgs = {
-              // 表示这次的查询条件
+              // 用 hash 后的 key 查 token，避免保存或比较明文 API key。
               where: {
                 hashedKey,
               },
-              // 表示这次查询只取指定字段
+              // 只取鉴权和权限计算需要的字段。
               select: {
-                expires: true, // expirres 到期
+                expires: true,
                 ...(isRestrictedToken && {
-                  scopes: true, // 作用域
-                  projectId: true, // 项目id
-                  installationId: true, // 安装id
+                  scopes: true,
+                  projectId: true,
+                  installationId: true,
                   project: {
                     select: {
-                      plan: true, // 项目plan
+                      plan: true,
                     },
                   },
                 }),
@@ -213,6 +230,7 @@ export const withWorkspace = (
               },
             };
 
+            // restricted token 和普通 token 存在不同表中，权限模型也不同。
             if (isRestrictedToken) {
               token = await prisma.restrictedToken.findUnique(prismaArgs);
             } else {
@@ -220,26 +238,28 @@ export const withWorkspace = (
             }
           }
 
-          // 优先用 cachedToken，如果 cachedToken 没值，就用前面查出来的 token
+          // 优先使用缓存中的 token；缓存没命中时使用数据库查到的 token。
           token = cachedToken || token;
 
+          // token 不存在或没有关联用户，说明 API key 无效。
           if (!token || !token.user) {
             throw new DubApiError({
-              code: "unauthorized", // 未经许可（或批准）的，未经授权的
-              message: "Unauthorized: Invalid API key.", //未授权：无效的API密钥。
+              code: "unauthorized",
+              message: "Unauthorized: Invalid API key.",
             });
           }
 
+          // token 如果配置了过期时间，过期后不能继续使用。
           if (token.expires && token.expires < new Date()) {
             throw new DubApiError({
-              code: "unauthorized", // 未经许可（或批准）的，未经授权的
-              message: "Unauthorized: Access token expired.", // 未授权：访问令牌已过期。
+              code: "unauthorized",
+              message: "Unauthorized: Access token expired.",
             });
           }
 
           if (!cachedToken) {
             waitUntil(
-              //核心作用是：  把一个异步任务挂到请求生命周期里继续执行，但不阻塞当前响应返回
+              // 后台写入 token 缓存，不阻塞当前请求返回。
               tokenCache.set({
                 hashedKey,
                 token,
@@ -247,56 +267,47 @@ export const withWorkspace = (
             );
           }
 
-          // Rate limit checks for API keys
-          // 对使用 API key 发起的请求做限流检查，防止同一个 key 在短时间内打太多请求
+          // 对 API key 请求做限流，防止同一个 key 在短时间内打太多请求。
           let limit = 0;
-          //let 变量名: 类型 = 值;
+          // analytics/events 请求使用秒级窗口，普通 API 请求使用分钟级窗口。
           let interval: `${number} s` | `${number} m` = isAnalytics
             ? "1 s"
             : "1 m";
 
-          //  根据当前 token 对应项目的套餐 plan，取出这个套餐的限流配置；如果拿不到 plan，就按 free 套餐处理。
+          // 根据 token 绑定项目的套餐获取限流配置；拿不到套餐时按 free 处理。
           const planLimit = getRatelimitForPlan(token.project?.plan || "free");
-          // is Analytcs 是否是分析类请求    从当前套餐的限流配置里，取出这次请求应该使用的那一档请求上限
+          // 同一个套餐下，普通 API 和 analytics API 的限流上限不同。
           limit = planLimit.limits[isAnalytics ? "analyticsApi" : "api"];
 
-          //  限制单位时间内的请求次数
-          // rate limit：限流
-          // request：请求
+          // 执行限流检查。identifier 使用 hashedKey，表示按 API key 维度限流。
           const { success, headers } = await rateLimitRequest({
-            //   Identifier: 标识符
             identifier: `workspace:ratelimit:${hashedKey}`,
-            // requests: limit：请求的上限
             requests: limit,
-            // interval：时间间隔
             interval,
           });
 
           if (headers) {
-            // Object.entries(headers)  会把对象转成“键值对数组”。
-            //  [ [ 'Retry-After', '59' ], [ 'X-RateLimit-Limit', '1000' ], [ 'X-RateLimit-Remaining', '999' ], [ 'X-RateLimit-Reset', '1713749448' ] ]
+            // 把限流相关响应头透传给客户端，例如 Retry-After、X-RateLimit-Remaining。
             for (const [key, value] of Object.entries(headers)) {
               responseHeaders.set(key, value);
             }
           }
 
+          // 限流未通过时，直接拒绝本次请求，不进入后续 workspace 权限判断。
           if (!success) {
             throw new DubApiError({
-              code: "rate_limit_exceeded", //超出限制速率
-              message: "Too many requests.", //太多请求了。
+              code: "rate_limit_exceeded",
+              message: "Too many requests.",
             });
           }
 
-          // Find workspaceId if it's a restricted token
-          //如果workspaceId是受限令牌，则查找它
+          // restricted token 绑定了 projectId，可以直接用它确定 workspaceId。
           if (isRestrictedToken && token?.projectId) {
             workspaceId = token.projectId;
           }
 
-          //在后台异步更新 token 的 lastUsed（最后使用时间），但最多每分钟更新一次
+          // 后台更新 token 的 lastUsed，最多每分钟更新一次，避免每次请求都写数据库。
           waitUntil(
-            // update last used time for the token (only once every minute)
-            // 更新该令牌的最后使用时间（每分钟仅更新一次）
             (async () => {
               try {
                 const { success } = await ratelimit(1, "1 m").limit(
@@ -313,6 +324,7 @@ export const withWorkspace = (
                     },
                   };
 
+                  // 两种 token 存储在不同表中，更新 lastUsed 时也要区分。
                   if (isRestrictedToken) {
                     await prisma.restrictedToken.update(prismaArgs);
                   } else {
@@ -325,40 +337,44 @@ export const withWorkspace = (
             })(),
           );
 
-          //  这段代码是在把 token 对应的用户信息包装成统一的 session 结构，方便后续代码按 session.user 来访问。
+          // 把 API key 对应的用户包装成统一的 session 结构，后续流程就不用区分 API key 和网页登录。
           session = {
             user: {
               id: token.user.id,
               name: token.user.name || "",
               email: token.user.email || "",
-              isMachine: token.user.isMachine, //“当前用户是不是系统/自动化账户，而不是普通人类用户”。`
+              isMachine: token.user.isMachine,
             },
           };
         } else {
-          //  如果没有传 apiKey，就通过 NextAuth.js 的 getSession 来获取当前登录用户的 session
+          // 没有 API key 时，按普通网页登录请求处理，从 NextAuth session 中读取当前用户。
           session = await getSession();
 
+          // 没有 session.user.id 表示用户未登录。
           if (!session?.user?.id) {
             throw new DubApiError({
-              code: "unauthorized", // 未经许可（或批准）的，未经授权的
-              message: "Unauthorized: Login required.", // 未授权：需要登录。
+              code: "unauthorized",
+              message: "Unauthorized: Login required.",
             });
           }
 
-          // Rate limit checks for session requests
+          // 普通 session 请求也做限流，但限流上限使用固定配置，不按套餐动态计算。
           const rateLimit =
             RATE_LIMIT_FOR_SESSIONS[isAnalytics ? "analyticsApi" : "api"];
 
+          // session 请求按 userId 维度限流。
           const { success, headers } = await rateLimitRequest({
             identifier: `workspace:ratelimit:${session.user.id}`,
             requests: rateLimit.limit,
             interval: rateLimit.interval,
           });
 
+          // 把限流响应头返回给客户端。
           for (const [key, value] of Object.entries(headers)) {
             responseHeaders.set(key, value);
           }
 
+          // session 请求超过限流时同样直接拒绝。
           if (!success) {
             throw new DubApiError({
               code: "rate_limit_exceeded",
@@ -367,31 +383,31 @@ export const withWorkspace = (
           }
         }
 
+        // 第三层：根据 workspaceId 或 workspaceSlug 查询当前 workspace。
         workspace = (await prisma.project.findUnique({
-          // 查询条件
           where: {
             id: workspaceId || undefined,
             slug: workspaceSlug || undefined,
           },
-          // 连带查关联数据
           include: {
+            // 这里只查询“当前用户在这个 workspace 的成员关系”，不是查询全部 workspace 成员。
             users: {
-              //Prisma 这里 include: { users: ... } 返回的关系字段类型天然就是数组。即使你加了：
               where: {
-                userId: session.user.id, // @@unique([userId, projectId])
-                // 意思是：同一个用户在同一个 workspace 里最多只能有一条成员关系记录。
+                userId: session.user.id,
               },
               select: {
+                // role 是后续计算 workspace 权限的核心字段。
                 role: true,
+                // 当前用户默认使用的 folder。
                 defaultFolderId: true,
-                workspacePreferences: !apiKey, // Hide from API
+                // API key 请求不返回 workspacePreferences，避免把前端偏好数据暴露给外部 API。
+                workspacePreferences: !apiKey,
               },
             },
           },
         })) as WorkspaceWithUsers;
 
-        // exist 存在
-        // workspace doesn't exist
+        // workspace 本身不存在时，后续成员关系和权限都无法判断。
         if (!workspace || !workspace.users) {
           throw new DubApiError({
             code: "not_found",
@@ -399,14 +415,11 @@ export const withWorkspace = (
           });
         }
 
-        // workspace exists but user is not part of it
-        // 工作区存在但用户不是其中一部分
+        // workspace 存在，但当前用户不是成员；此时检查是否存在待接受邀请。
         if (workspace.users.length === 0) {
-          // pendingInvites  待处理的邀请  [pending:待处理的]
           const pendingInvites = await prisma.projectInvite.findUnique({
             where: {
-              //  两层不是多余，而是在表示“用 email_projectId 这个复合唯一键去查”，里面那层才是这个联合键的具体字段值。
-              //用 email 和 projectId 这组联合唯一条件去查一条唯一记录
+              // 使用 email + projectId 这个复合唯一键查询邀请记录。
               email_projectId: {
                 email: session.user.email,
                 projectId: workspace.id,
@@ -417,17 +430,20 @@ export const withWorkspace = (
             },
           });
 
+          // 没有成员关系也没有邀请，返回 not_found，避免向无关用户暴露 workspace 是否存在。
           if (!pendingInvites) {
             throw new DubApiError({
               code: "not_found",
               message: "Workspace not found.",
             });
           } else if (pendingInvites.expires < new Date()) {
+            // 有邀请但已过期，返回单独错误，前端可以展示邀请过期状态。
             throw new DubApiError({
               code: "invite_expired",
               message: "Workspace invite expired.",
             });
           } else {
+            // 有邀请且未过期，但用户尚未接受。
             throw new DubApiError({
               code: "invite_pending",
               message: "Workspace invite pending.",
@@ -435,32 +451,24 @@ export const withWorkspace = (
           }
         }
 
-        // Machine users have owner role by default
-        //默认情况下，机器用户具有所有者角色  |   机器用户默认拥有 owner 角色
-        // Only workspace owners can create machine users
-        //只有工作区所有者可以创建机器用户  |  只有工作区的 owner 才能创建机器用户
+        // 机器用户默认按 owner 处理；只有 workspace owner 能创建机器用户，所以这里提升为 owner 是安全前提。
         if (session.user.isMachine) {
-          // 如果当前登录身份是机器用户，就把他在当前 workspace 里的角色直接当成 owner
           workspace.users[0].role = "owner";
         }
 
-        // 根据当前用户在这个 workspace 里的角色，算出他拥有的权限列表
-        //  因为这里控制的不是“这个人全局是什么身份”，而是“这个人在这个 workspace 里是什么身份”。
+        // 第四层：根据当前用户在该 workspace 中的 role，映射出 workspace 级权限列表。
         permissions = getPermissionsByRole(workspace.users[0].role);
 
-        // Find the subset of permissions that the user has access to based on the token scopes
-        //根据 token 的 scopes，找出当前用户实际可用的那部分权限。
-        //如果当前用的是 restricted token，就不能只看用户角色，还要看这个 token 自己允许哪些 scope。
+        // restricted token 不能只看用户角色，还要用 token scopes 再收窄权限。
         if (isRestrictedToken && token?.scopes) {
           const tokenScopes = (token.scopes.split(" ") as Scope[]) || [];
-          //token 允许的权限 和 用户角色本来拥有的权限 的交集。
+          // 最终权限 = token scopes 映射出的权限 ∩ 用户当前 role 拥有的权限。
           permissions = mapScopesToPermissions(tokenScopes).filter((p) =>
             permissions.includes(p),
           );
         }
 
-        // Check user has permission to make the action
-        // 如果当前接口定义了“需要哪些权限”，那就检查当前用户有没有这些权限；没有的话就抛错拦截。
+        // 第五层：检查接口声明的 requiredPermissions。
         if (requiredPermissions.length > 0) {
           throwIfNoAccess({
             permissions,
@@ -470,9 +478,8 @@ export const withWorkspace = (
           });
         }
 
-        // role checks
+        // 第六层：检查接口声明的 requiredRoles。这个比权限点更直接，适合必须限定 owner 等角色的接口。
         if (
-          //  > 如果这个接口要求必须是某些角色才能访问，而当前用户在这个 workspace 里的角色不在允许范围内，就直接报错
           requiredRoles.length > 0 &&
           !requiredRoles.includes(workspace.users[0].role)
         ) {
@@ -482,8 +489,7 @@ export const withWorkspace = (
           });
         }
 
-        // beta feature checks
-        //  > 如果当前接口或功能要求某个 featureFlag 开启，系统就去查这个 workspace 有没有开通这个功能；如果没开，就禁止访问。
+        // 第七层：检查 beta / 灰度功能开关。接口要求 featureFlag 时，workspace 必须已开启该功能。
         if (featureFlag) {
           const flags = await getFeatureFlags({
             workspaceId: workspace.id,
@@ -497,8 +503,7 @@ export const withWorkspace = (
           }
         }
 
-        // plan checks
-        // > 如果当前 workspace 的套餐 plan 不在接口要求的套餐范围里，就禁止访问。
+        // 第八层：检查套餐。当前 workspace plan 必须包含在接口允许的 requiredPlan 中。
         if (!requiredPlan.includes(workspace.plan)) {
           throw new DubApiError({
             code: "forbidden",
@@ -506,8 +511,7 @@ export const withWorkspace = (
           });
         }
 
-        // analytics API checks
-        //免费套餐的 workspace，如果是通过 apiKey 调用 analytics 接口，就不允许访问。
+        // 第九层：免费套餐不能通过 API key 调用 analytics API。
         if (
           workspace.plan === "free" &&
           apiKey &&
@@ -519,22 +523,19 @@ export const withWorkspace = (
           });
         }
 
-        //前面的鉴权、权限、角色、套餐、功能开关这些检查都通过了，现在正式调用真正的业务处理函数 handler。
+        // 所有准入检查都通过后，才调用真正的业务处理函数。
         return await handler({
-          req: clonedReq, // 当前请求对象
-          params, // 路由参数
-          searchParams, // 查询参数
-          headers: responseHeaders, // 响应头
-          session, // 当前登录用户会话
-          workspace, // 当前解析出来的 workspace
-          permissions, // 当前用户 / token 最终可用的权限
-          token, // 当前请求使用的 token 信息（如果有）
+          req: clonedReq,
+          params,
+          searchParams,
+          headers: responseHeaders,
+          session,
+          workspace,
+          permissions,
+          token,
         });
       } catch (error) {
-        // Log the conversion events for debugging purposes
-        //> 在后台额外执行一段异步任务。
-        // > 如果当前请求是 /track/lead 或 /track/sale，并且有 workspace，就把这次错误记录下来。
-        //  异步记录错误日志，而且不阻塞当前请求返回。
+        // 错误处理：转化追踪接口失败时额外记录事件，便于排查 lead/sale 上报失败原因。
         waitUntil(
           (async () => {
             const paths = ["/track/lead", "/track/sale"];
@@ -549,6 +550,7 @@ export const withWorkspace = (
           })(),
         );
 
+        // 把 DubApiError 或其他异常转换成统一 HTTP 响应，并保留已写入的响应头。
         return handleAndReturnErrorResponse(error, responseHeaders);
       }
     },
