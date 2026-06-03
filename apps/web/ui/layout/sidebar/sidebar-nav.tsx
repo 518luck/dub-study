@@ -129,6 +129,9 @@ export function SidebarNav<T extends Record<any, any>>({
                   <NavWordmark className="h-5 overflow-visible" isInApp />
                 </Link>
               </div>
+              {/* 没有 currentArea 或 当前 area 没有设置 hideSwitcherIcons → 显示
+              switcher 和 groups 图标 */}
+              {/* 控制“左侧主导航图标区”要不要显示，并把 switcher 和多个 NavGroupItem 竖着渲染出来。 */}
               {(!currentArea ||
                 !areas[currentArea](data).hideSwitcherIcons) && (
                 <div className="flex flex-col gap-3">

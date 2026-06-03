@@ -20,6 +20,7 @@ console.warn = (...args) => {
 /** @type {import('next').NextConfig} */
 module.exports = {
   reactStrictMode: false,
+  allowedDevOrigins: ["192.168.31.11"],
   transpilePackages: [
     "prettier",
     "shiki",
