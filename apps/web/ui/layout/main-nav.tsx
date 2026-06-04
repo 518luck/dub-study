@@ -4,14 +4,14 @@ import { useMediaQuery } from "@dub/ui";
 import { cn } from "@dub/utils";
 import { usePathname } from "next/navigation";
 import {
-  ComponentType,
-  createContext,
-  Dispatch,
-  PropsWithChildren,
-  ReactNode,
-  SetStateAction,
-  useEffect,
-  useState,
+  ComponentType, // 类型：表示一个 React 组件类型，这里用于 sidebar: ComponentType<...>
+  createContext, // 创建 React Context，用来跨组件共享状态
+  Dispatch, // 类型：表示 setState 这种派发函数
+  PropsWithChildren, // 类型：给 props 自动加上 children
+  ReactNode, // 类型：表示任意可渲染的 React 内容，比如 JSX、字符串、null
+  SetStateAction, // 类型：表示 setState 可以接收的值或更新函数
+  useEffect, // Hook：处理副作用，比如路由变化后关闭侧边栏
+  useState, // Hook：创建组件内部状态，比如 isOpen
 } from "react";
 import { useUpgradeBannerVisible } from "./upgrade-banner";
 
