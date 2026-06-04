@@ -64,20 +64,20 @@ import { WorkspaceDropdown } from "./workspace-dropdown";
 // app.dub.co 后台侧边栏的业务数据结构。
 // SidebarNav 是通用 UI 外壳，这里的 data 是菜单配置函数生成 href、active 状态和 badge 时需要的上下文。
 type SidebarNavData = {
-  slug: string;
-  pathname: string;
-  queryString: string;
-  defaultProgramId?: string;
-  session?: Session | null;
-  showNews?: boolean;
-  pendingPayoutsCount?: number;
-  applicationsCount?: number;
-  submittedBountiesCount?: number;
-  unreadMessagesCount?: number;
-  pendingFraudEventsCount?: number;
-  pendingReferralsCount?: number;
-  showConversionGuides?: boolean;
-  partnerNetworkEnabled?: boolean;
+  slug: string; // 当前 workspace 的 slug，用来拼接 /{slug}/... 路由。
+  pathname: string; // 当前浏览器路径，用来判断 active 状态和 currentArea。
+  queryString: string; // 侧边栏跳转时需要保留的查询参数，例如 folderId。
+  defaultProgramId?: string; // 当前 workspace 的默认 Partner Program ID，没有 program 时为空。
+  session?: Session | null; // 当前登录用户 session，可用于根据用户信息生成菜单。
+  showNews?: boolean; // 是否允许在右侧菜单底部展示 news / usage 区域。
+  pendingPayoutsCount?: number; // 待处理 payout 数量，用于 Payouts 菜单 badge。
+  applicationsCount?: number; // 待处理 partner application 数量，用于 Applications 菜单 badge。
+  submittedBountiesCount?: number; // 已提交 bounty 数量，用于 Bounties 菜单 badge。
+  unreadMessagesCount?: number; // 未读 partner message 数量，用于 Messages 菜单 badge。
+  pendingFraudEventsCount?: number; // 待处理风控事件数量，用于 Fraud Detection 菜单 badge。
+  pendingReferralsCount?: number; // 待处理 referral 数量，用于 Customers 菜单 badge。
+  showConversionGuides?: boolean; // 是否展示 conversion tracking 引导入口。
+  partnerNetworkEnabled?: boolean; // 当前 program 是否启用了 Partner Network，用来决定是否显示对应菜单。
 };
 
 // 左侧窄栏的一级入口配置。
