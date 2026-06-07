@@ -27,6 +27,7 @@ const TooltipMarkdown = ({
   children: string;
 }) => {
   return (
+    // 字符串类型的 tooltip 内容会走这里，用 Markdown 渲染，支持链接、行内代码等格式。
     <ReactMarkdown
       className={cn(
         "prose prose-sm prose-neutral max-w-xs text-pretty px-4 py-2 text-center leading-snug transition-all",
@@ -36,6 +37,7 @@ const TooltipMarkdown = ({
         className,
       )}
       components={{
+        // tooltip 里的链接默认新窗口打开，并阻止点击事件冒泡到外层触发器。
         a: ({ node, ...props }) => (
           <a
             {...props}
@@ -44,6 +46,7 @@ const TooltipMarkdown = ({
             onClick={(e) => e.stopPropagation()}
           />
         ),
+        // 统一 tooltip 内行内代码的浅色背景和内边距。
         code: ({ node, ...props }) => (
           <code {...props} className="rounded-md bg-neutral-100 px-1 py-0.5" />
         ),

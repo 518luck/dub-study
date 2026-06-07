@@ -137,9 +137,7 @@ export function SidebarNav<T extends Record<any, any>>({
                 <div className="flex flex-col gap-3">
                   {switcher}
                   {groups(data).map((group) => (
-                    <>
-                      <NavGroupItem key={group.name} group={group} />
-                    </>
+                    <NavGroupItem key={group.name} group={group} />
                   ))}
                 </div>
               )}
