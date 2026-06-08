@@ -28,12 +28,19 @@ import {
 import { UserDropdown } from "./user-dropdown";
 
 export type NavItemCommon = {
+  // 菜单项名称，用作显示文本和 React key。
   name: string;
+  // 菜单项链接，要求以 / 开头。
   href: `/${string}`;
+  // 是否需要路径完全匹配才算激活。
   exact?: boolean;
+  // 自定义激活判断函数，接收当前 pathname 和菜单项 href。
   isActive?: (pathname: string, href: string) => boolean;
+  // 菜单项右侧展示的徽标或自定义内容。
   badge?: ReactNode;
+  // 是否在菜单项右侧显示箭头。
   arrow?: boolean;
+  // 是否将菜单项展示为锁定状态。
   locked?: boolean;
 };
 
@@ -64,15 +71,25 @@ export type SidebarNavGroups<T extends Record<any, any>> = (
 ) => NavGroupType[];
 
 export type SidebarNavAreas<T extends Record<any, any>> = Record<
+  // 区域 key，例如 default / program / workspaceSettings。
   string,
+  // 根据运行时侧边栏数据生成区域配置的函数。
   (args: T) => {
+    // 区域标题。字符串会使用默认标题样式，ReactNode 可用于自定义渲染。
     title?: string | ReactNode;
+    // 可选返回链接。存在时标题区域会作为返回入口。
     backHref?: string;
-    showNews?: boolean; // show news segment – TODO: enable this for Partner Program too
-    hideSwitcherIcons?: boolean; // hide workspace switcher + product icons for this area
+    // 是否在该区域显示 news 区块。
+    showNews?: boolean; // TODO: 后续也为 Partner Program 启用。
+    // 是否在该区域隐藏 workspace 切换器和 product 图标。
+    hideSwitcherIcons?: boolean;
+    // 区域切换动画的方向。
     direction?: "left" | "right";
+    // 该区域内渲染的菜单分组。
     content: {
+      // 可选分组标题，显示在该组菜单项上方。
       name?: string;
+      // 当前分组内渲染的导航菜单项。
       items: NavItemType[];
     }[];
   }
