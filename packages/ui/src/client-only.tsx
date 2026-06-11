@@ -4,10 +4,10 @@ import { ReactNode, useEffect, useState } from "react";
 // ClientOnly 用来让 children 只在浏览器客户端渲染。
 // 适合包裹依赖 window、document、浏览器尺寸或客户端状态的组件，避免服务端渲染和客户端 hydration 不一致。
 export const ClientOnly = ({
-  children,
-  fallback,
-  fadeInDuration = 0.5,
-  className,
+  children, // 客户端挂载后才渲染的真正内容
+  fallback, // 挂载前显示的占位内容
+  fadeInDuration = 0.5, // 内容出现的淡入动画时长
+  className, // 给包裹children 的容器div 加样式
 }: {
   children: ReactNode;
   fallback?: ReactNode;
