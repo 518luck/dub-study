@@ -47,7 +47,7 @@ class StorageClient {
         // 判断是否为URL
         uploadBody = await this.urlToBlob(body, opts); // 从URL下载并转为Blob
       } else {
-        throw new Error("Invalid input: Not a base64 string or a valid URL"); // 既不是Base64也不是URL，抛出错误
+        throw new Error("Invalid input: Not`a base64 string or a valid URL"); // 既不是Base64也不是URL，抛出错误
       }
     } else {
       uploadBody = body; // 直接使用传入的Blob/Buffer
@@ -208,6 +208,7 @@ class StorageClient {
       base64Data.length + ((4 - (base64Data.length % 4)) % 4),
       "=",
     );
+    ``;
 
     const binaryString = atob(paddedBase64Data); // 解码Base64为二进制字符串
     const byteArray = new Uint8Array(binaryString.length); // 创建字节数组
