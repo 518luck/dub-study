@@ -6,11 +6,11 @@ import usePartnerProfile from "@/lib/swr/use-partner-profile";
 import { UserAvatar } from "@/ui/users/user-avatar";
 import {
   ArrowsOppositeDirectionX, // 切换账户图标
-  Gift,                      // 推荐赚佣图标
+  Gift, // 推荐赚佣图标
   Icon,
-  Popover,                   // 弹出层组件
-  useCurrentSubdomain,       // 获取当前子域名（如 "app" / "partners"）
-  User,                      // 用户图标
+  Popover, // 弹出层组件
+  useCurrentSubdomain, // 获取当前子域名（如 "app" / "partners"）
+  User, // 用户图标
 } from "@dub/ui";
 import { APP_DOMAIN, cn, PARTNERS_DOMAIN } from "@dub/utils";
 import { LogOut } from "lucide-react";
@@ -157,9 +157,9 @@ export function UserDropdown() {
 
 /** 菜单选项组件的 props 类型 */
 type UserOptionProps<T extends ElementType> = {
-  as?: T;       // 渲染的元素类型，默认 "button"，有 href 时传 Link
+  as?: T; // 渲染的元素类型，默认 "button"，有 href 时传 Link
   label: string; // 选项文字
-  icon: Icon;    // 选项图标
+  icon: Icon; // 选项图标
 };
 
 /**
