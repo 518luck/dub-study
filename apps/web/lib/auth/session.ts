@@ -41,10 +41,10 @@ interface WithSessionHandler {
     searchParams,
     session,
   }: {
-    req: Request;                       // 原始请求对象
-    params: Record<string, string>;     // 路径动态参数（如 [id]）
+    req: Request; // 原始请求对象
+    params: Record<string, string>; // 路径动态参数（如 [id]）
     searchParams: Record<string, string>; // 查询参数
-    session: Session;                    // 已鉴权通过的当前会话
+    session: Session; // 已鉴权通过的当前会话
   }): Promise<Response>;
 }
 
@@ -96,7 +96,7 @@ export const withSession = (handler: WithSessionHandler) =>
               id: true,
               name: true,
               email: true,
-              isMachine: true,  // 是否为机器账号（如 CI/CD 创建的专用账号）
+              isMachine: true, // 是否为机器账号（如 CI/CD 创建的专用账号）
             },
           });
           if (!user) {
