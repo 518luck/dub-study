@@ -1,15 +1,51 @@
+// =============================================================================
+// model Token —— API Key（程序化访问凭证）
+// -----------------------------------------------------------------------------
+// 用户在控制台生成的「API Key」在数据库里的存储形式。
+// 客户端拿到的明文 key（如 dub_xxxxxxxx）只在生成时返回一次，
+// 之后 DB 里只保留它的哈希（hashedKey），用于后续鉴权时比对，
+// 避免拖库后明文泄露。一个用户可以拥有多个 Token（一对多），
+// 例如生产环境、测试环境、CI bot 各一个。
+// =============================================================================
 model Token {
+  // 主键：cuid 自动生成，全局唯一、不可猜测
   id         String    @id @default(cuid())
+
+  // 用户给这个 key 起的友好名字（如 "Production"、"CI bot"），便于在控制台识别
   name       String
+
+  // ★ 核心：API Key 的哈希值（hashToken 算出来的单向哈希）
+  //   - @unique：唯一索引，保证不同 key 哈希不冲突；同时让 withSession 里
+  //     prisma.user.findFirst({ where: { tokens: { some: { hashedKey } } } })
+  //     反查时最多命中一条
+  //   - 明文 key 永不入库（详见 lib/auth/hash-token.ts）
   hashedKey  String    @unique
+
+  // 明文 key 的「部分位」（如前缀 + 后缀），用于控制台显示 dub_xxxx...yyyy
+  //   方便用户在不暴露完整 key 的前提下识别「这是哪个 key」
   partialKey String
+
+  // 过期时间；null 表示永不过期（大多数 API Key 默认长期有效）
   expires    DateTime?
+
+  // 最近一次被使用的时间：withSession 鉴权成功后通过 waitUntil 异步更新
+  //   （每分钟最多写一次，避免高 QPS 时对 DB 造成写放大，详见 session.ts）
   lastUsed   DateTime?
+
+  // 创建时间，默认当前时间
   createdAt  DateTime  @default(now())
+
+  // 更新时间，Prisma 自动维护（任何字段变更都会刷新）
   updatedAt  DateTime  @updatedAt
+
+  // 关系字段（虚拟）：指向所属 User，Prisma 通过 userId 外键自动 JOIN
+  //   - onDelete: Cascade：用户被删除时，其名下所有 Token 一起删除，避免孤儿数据
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 外键：物理列，真实存在于 DB Token 表中，指向 User.id
   userId     String
 
+  // 给 userId 建索引：加速「按 user 反查他所有的 token」这类查询
   @@index([userId])
 }
 
