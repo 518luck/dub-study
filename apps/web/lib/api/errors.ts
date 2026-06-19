@@ -89,14 +89,37 @@ export function fromZodError(error: z.ZodError): ErrorResponse {
   };
 }
 
+// =============================================================================
+// handleApiError —— API 错误统一归一化处理
+// -----------------------------------------------------------------------------
+// 作用：把任意"抛出来的错误"转换成"统一的 API 响应结构 + HTTP 状态码"。
+// 这是整个 API 错误处理的"中枢"：所有路由 try/catch 捕获到的 error 最终
+// 都会流到这里，被识别 / 包装 / 返回给客户端。
+//
+// 处理顺序（从具体到宽泛，命中即返回）：
+//   1. ZodError     —— 入参校验失败（422 Unprocessable Entity）
+//   2. DubApiError  —— 项目自定义业务错误（按 code 映射对应 HTTP 状态码）
+//   3. Prisma P2025 —— 数据库层"记录不存在"错误（统一转成 404）
+//   4. Fallback     —— 其他未识别错误，统一返回 500，并隐藏内部细节
+//
+// 返回值：{ error: ErrorResponse, status: number }
+//   - error   最终写入响应体的 JSON 结构（含 code/message/doc_url）
+//   - status  对应的 HTTP 状态码
+// =============================================================================
 function handleApiError(error: any): ErrorResponse & { status: number } {
+  // —— 副作用：日志双写 ——
+  // 1) 控制台打印：方便本地开发 / 日志聚合系统采集
   console.error(error.message);
 
-  // Send error to Axiom
+  // 2) Axiom 远程日志：线上错误追踪与告警（必须 flush 才会真正上报，
+  //    因为 Vercel Edge / Serverless 实例随时可能被回收）
   logger.error(error.message, error);
   logger.flush();
 
-  // Zod errors
+  // —— 分支 1：Zod 校验错误 ——
+  // 业务层用 zod schema 解析请求体 / 查询参数失败时抛出。
+  // fromZodError 会把字段级错误（如 "email must be a valid email"）
+  // 拼接成对用户友好的提示，统一映射为 422。
   if (error instanceof z.ZodError) {
     return {
       ...fromZodError(error),
@@ -104,7 +127,11 @@ function handleApiError(error: any): ErrorResponse & { status: number } {
     };
   }
 
-  // DubApiError errors
+  // —— 分支 2：项目自定义业务错误 ——
+  // 业务代码主动 throw new DubApiError({ code: "forbidden", ... }) 抛出。
+  // code 是预定义的错误码字符串（见 ErrorCode enum），ErrorCodes 表把
+  // code 映射到对应的 HTTP 状态码（如 forbidden -> 403, unauthorized -> 401）。
+  // doc_url 指向文档锚点，便于调用方排查。
   if (error instanceof DubApiError) {
     return {
       error: {
@@ -116,7 +143,11 @@ function handleApiError(error: any): ErrorResponse & { status: number } {
     };
   }
 
-  // Prisma record not found error
+  // —— 分支 3：Prisma "记录不存在"错误 ——
+  // P2025 是 Prisma 的错误码：当 update/delete 操作的目标记录不存在时抛出。
+  // 这里把它"翻译"成 HTTP 语义下的 404，让客户端不用关心底层 ORM。
+  // meta.cause 是 Prisma 给出的具体原因（如 "Link with id xxx not found"），
+  // 优先用它作为错误信息；否则退回到 error.message，再退回到兜底文案。
   if (error.code === "P2025") {
     return {
       error: {
@@ -131,8 +162,11 @@ function handleApiError(error: any): ErrorResponse & { status: number } {
     };
   }
 
-  // Fallback
-  // Unhandled errors are not user-facing, so we don't expose the actual error
+  // —— 分支 4：兜底（未识别错误）——
+  // 走到这里说明是不在预期内的异常（如 DB 连接断、第三方服务挂、空指针等）。
+  // 关键原则：**对客户端隐藏真实错误信息**，避免泄露内部实现细节（如
+  // SQL 片段、堆栈、文件路径），这些信息可能被攻击者利用。
+  // 真实错误已在上面通过 console + Axiom 记录，客服/开发可从日志查。
   return {
     error: {
       code: "internal_server_error",
@@ -144,6 +178,16 @@ function handleApiError(error: any): ErrorResponse & { status: number } {
   };
 }
 
+// =============================================================================
+// handleAndReturnErrorResponse —— 把"错误对象"包装成 NextResponse 返回
+// -----------------------------------------------------------------------------
+// 作用：路由层 try/catch 的最外层调用这个函数，直接把错误转换成可返回的
+// HTTP 响应。它做的事很简单：
+//   1. 调用 handleApiError 把 err 归一化为 { error, status }
+//   2. 用 NextResponse.json 包装成正式 HTTP 响应，并透传调用方传来的 headers
+//      （headers 常用于回写 X-RateLimit-* 限流信息：即使请求失败，
+//       客户端也能从响应头里看到当前配额状态，做退避）
+// =============================================================================
 export function handleAndReturnErrorResponse(err: unknown, headers?: Headers) {
   const { error, status } = handleApiError(err);
   return NextResponse.json<ErrorResponse>({ error }, { headers, status });
