@@ -99,7 +99,15 @@ export async function AppMiddleware(req: NextRequest) {
         return NextResponse.redirect(new URL("/onboarding", req.url));
       }
 
-      // if the path is / or /login or /register, redirect to the default workspace
+      // 如果访问的是“不带 workspace slug 的顶级页面”，就把它交给 WorkspacesMiddleware 处理。
+      // WorkspacesMiddleware 会解析出当前用户的默认 workspace，然后把用户重定向到
+      // /<workspace-slug>/<对应子页面>，例如访问 /links 会跳到 /acme/links。
+      // 这里涵盖三类路径：
+      //   1. 一组固定的顶级路径（根路径、登录注册后落地页、以及不带 slug 的功能入口，
+      //      如 /links、/analytics、/program、/settings、/upgrade、/wrapped 等）。
+      //   2. 以 /program/ 或 /settings/ 开头的路径（例如 /program/settings、/settings/billing）。
+      //   3. 顶层 settings 相关的旧路径（/domains、/integrations、/webhooks 及其子路径），
+      //      由 isTopLevelSettingsRedirect 判定，这些都需要并入 workspace settings 体系。
     } else if (
       [
         "/",
@@ -124,6 +132,10 @@ export async function AppMiddleware(req: NextRequest) {
       return WorkspacesMiddleware(req, user);
     }
 
+    // 走到这里说明路径已经是带 workspace slug 的“具体业务路径”（例如 /acme/links）。
+    // 调用 appRedirect 检查该路径是否命中“路径迁移规则”：可能是旧路径需要跳到新路径
+    // （如 /account → /account/settings），也可能是 /<slug> 这种根路径需要补上默认
+    // product（如 /acme → /acme/links）。命中则直接 302 重定向到目标路径，并保留原 query。
     const appRedirectPath = await appRedirect(path);
     if (appRedirectPath) {
       return NextResponse.redirect(
@@ -132,6 +144,8 @@ export async function AppMiddleware(req: NextRequest) {
     }
   }
 
-  // otherwise, rewrite the path to /app
+  // 经过前面所有分流后仍未处理的请求，统一 rewrite 到 /app.dub.co 路由目录下。
+  // rewrite（而非 redirect）对用户是透明的：浏览器地址栏不变，但内部会去 app.dub.co
+  // 路由树里匹配真正的页面组件来渲染。
   return NextResponse.rewrite(new URL(`/app.dub.co${fullPath}`, req.url));
 }
