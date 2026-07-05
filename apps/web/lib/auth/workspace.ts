@@ -45,14 +45,14 @@ interface WithWorkspaceHandler {
     permissions,
     token,
   }: {
-    req: Request;
-    params: Record<string, string>;
-    searchParams: Record<string, string>;
-    headers?: Headers;
-    session: Session;
-    permissions: PermissionAction[];
-    workspace: WorkspaceWithUsers;
-    token: TokenCacheItem | null;
+    req: Request; // 原始请求对象（已 clone，业务 handler 可放心读 body）
+    params: Record<string, string>; // 动态路由参数，如 [id]、[idOrSlug]
+    searchParams: Record<string, string>; // URL 查询参数，如 ?workspaceId=xxx
+    headers?: Headers; // 待返回给客户端的响应头容器（限流等头会写到这里）
+    session: Session; // 已鉴权的会话（统一结构：API key 和 cookie 登录都归一成 { user }）
+    permissions: PermissionAction[]; // 当前请求最终可用的权限点（由 role 推导，restricted token 会再用 scopes 收窄）
+    workspace: WorkspaceWithUsers; // 当前 workspace（含当前用户在其中的成员关系）
+    token: TokenCacheItem | null; // API key 请求时的 token 信息；网页登录时为 null
   }): Promise<Response>;
 }
 
