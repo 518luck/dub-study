@@ -1,7 +1,3 @@
-// 引入 Prisma 在 Next.js monorepo 中的打包兼容插件
-// 该插件用于解决 Prisma Client 在 Next.js monorepo 中打包时的模块解析问题
-const { PrismaPlugin } = require("@prisma/nextjs-monorepo-plugin");
-
 // 抑制特定的外部包警告（屏蔽掉一些无意义的告警输出）
 const originalConsoleWarn = console.warn;
 console.warn = (...args) => {
@@ -71,8 +67,8 @@ module.exports = {
         }),
       );
 
-      // 添加 Prisma monorepo 兼容插件
-      config.plugins = [...config.plugins, new PrismaPlugin()];
+      // 原 @prisma/nextjs-monorepo-plugin 已废弃下架（npm 404）
+      // 现版本 Prisma Client 配合 transpilePackages: ["@dub/prisma"] 即可正常打包
     }
 
     // 关闭 webpack 对表达式上下文的关键性警告
