@@ -91,6 +91,12 @@ export async function processLink<T extends Record<string, any>>({
     testVariants,
   } = payload;
 
+  // 防御：testVariants 必须是数组，否则一律视为未设置
+  // （历史脏数据可能存成 {}，会在写入/回读时引发类型错误）
+  if (testVariants && !Array.isArray(testVariants)) {
+    testVariants = undefined;
+  }
+
   // 日期字段单独取出（要被 parseDateTime 校验/转换）
   let expiresAt: string | Date | null | undefined = payload.expiresAt;
   let testCompletedAt: string | Date | null | undefined =
