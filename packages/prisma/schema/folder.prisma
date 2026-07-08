@@ -1,63 +1,207 @@
+/**
+ * ============================================================
+ * Folder 相关的 Prisma Schema —— 文件夹功能的完整数据模型
+ * ============================================================
+ * 这个文件定义了「链接文件夹」功能用到的所有数据结构。
+ * 一共 3 个 model + 3 个 enum：
+ * model Folder              —— 文件夹本体（一个文件夹 = 一行记录）
+ * model FolderUser          —— 文件夹↔用户 的关联表（谁能看/编辑）
+ * model FolderAccessRequest —— 用户「申请编辑权限」的记录表
+ * enum  FolderType          —— 文件夹类型（普通 / mega）
+ * enum  FolderAccessLevel   —— 文件夹在 workspace 内的访问级别
+ * enum  FolderUserRole      —— 具体用户在某个文件夹里的角色
+ * 整体关系：
+ * Workspace (Project)
+ * │ 1:n
+ * ▼
+ * Folder ────────┐
+ * │ 1:n       │ 1:n
+ * ▼           ▼
+ * Link    FolderUser ──→ User
+ * (谁有什么角色)
+ * │
+ * └ FolderAccessRequest (用户申请权限的记录)
+ */
+
+/**
+ * 文件夹类型
+ * ------------------------------------------------------------
+ * default —— 普通文件夹，用户自己建的
+ * mega    —— 「mega 文件夹」，属于 mega workspace（聚合多个 workspace 的视图）
+ * 这种文件夹逻辑特殊，前端很多地方用 type === "mega" 做分支
+ */
 enum FolderType {
   default
   mega
 }
 
+/**
+ * 文件夹的访问级别（针对整个 workspace 的默认行为）
+ * ------------------------------------------------------------
+ * 注意这是「文件夹级」的默认开放程度，不是具体用户的权限。
+ * read  —— workspace 内所有人可读（看得到里面的链接）
+ * write —— workspace 内所有人可读写（能往里移链接、能改）
+ * 可空（FolderAccessLevel?）：没设就是「按 FolderUser 表单独控制」
+ * 这两种权限机制可以叠加：
+ * - accessLevel 决定「整个 workspace 默认能干嘛」
+ * - FolderUser  决定「某个具体用户额外能干嘛」
+ */
 enum FolderAccessLevel {
   read // can view the links
   write // can view and move links
 }
 
+/**
+ * 某个用户在某个文件夹里的角色（FolderUser.role 用）
+ * ------------------------------------------------------------
+ * owner  —— 所有者，完全控制（删文件夹、改权限等）
+ * editor —— 编辑者，可以把链接移进这个文件夹
+ * viewer —— 只读，只能看链接
+ * 可空：没设角色时，权限回退到 Folder.accessLevel 去判断
+ */
 enum FolderUserRole {
   owner // full control
   editor // can move links to the folder
   viewer // can view the links
 }
 
+/**
+ * Folder —— 文件夹本体
+ * ============================================================
+ * 一个文件夹 = 这张表里的一行。
+ * 它本身不存链接，链接是通过 Link.folderId 外键挂在它下面的。
+ */
 model Folder {
-  id          String             @id @default(cuid())
-  name        String
-  description String?            @db.Text
-  projectId   String
-  type        FolderType         @default(default)
-  accessLevel FolderAccessLevel? // Access level of the folder within the workspace
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  // id —— 文件夹唯一标识，自动生成的 cuid（如 clxxxx...）
+  id String @id @default(cuid())
 
-  project        Project               @relation(fields: [projectId], references: [id])
-  links          Link[]
-  users          FolderUser[]
+  // name —— 文件夹名字（用户看到的 "Marketing"、"Summer Sale" 等）
+  name String
+
+  // description —— 文件夹描述，可选，长文本（@db.Text 表示用 TEXT 列存大段文字）
+  description String? @db.Text
+
+  // projectId —— 属于哪个 workspace（dub 里 Project 就是 Workspace）
+  //              这是文件夹的「租户隔离」字段：A workspace 看不到 B workspace 的文件夹
+  projectId String
+
+  // type —— 文件夹类型（普通 / mega），见上面的 FolderType 枚举
+  type FolderType @default(default)
+
+  // accessLevel —— 文件夹对整个 workspace 的默认访问级别（read/write/不设）
+  //                为 null 表示「不开放给全员，只按 FolderUser 表单独授权」
+  accessLevel FolderAccessLevel?
+
+  // createdAt —— 创建时间，插入时自动填
+  createdAt DateTime @default(now())
+
+  // updatedAt —— 更新时间，每次改动自动刷新
+  updatedAt DateTime @updatedAt
+
+  /**
+   * 下面是关联关系（Prisma 的 relation）：
+   * 注意这些字段不一定是物理列，有的是「虚拟关系」。
+   */
+
+  // project —— 反向指回所属的 Workspace（通过 projectId 关联到 Project.id）
+  project Project @relation(fields: [projectId], references: [id])
+
+  // links —— 这个文件夹下的所有链接（一对多）
+  //          注意：这里没有 folderId 字段，是因为外键存在 Link 那边（Link.folderId）
+  //          Prisma 通过 Link 上的 folder 关系反向聚合出这个列表
+  links Link[]
+
+  // users —— 这个文件夹授权给了哪些用户（通过 FolderUser 中间表）
+  users FolderUser[]
+
+  // accessRequests —— 有哪些用户在「申请访问」这个文件夹
   accessRequests FolderAccessRequest[]
-  dashboard      Dashboard?
 
+  // dashboard —— 文件夹可能挂一个 Dashboard（一对一，可选）
+  dashboard Dashboard?
+
+  /**
+   * 约束 & 索引：
+   */
+
+  // 同一个 workspace 内，文件夹名字不能重复
+  // （不同 workspace 可以有同名的文件夹）
   @@unique([name, projectId])
+  // 给 projectId 建索引：经常按 workspace 查文件夹列表，加索引快
   @@index(projectId)
 }
 
+/**
+ * FolderUser —— 文件夹↔用户 的多对多关联表（带角色）
+ * ============================================================
+ * 一行记录 = 「某个用户，对某个文件夹，有什么角色」。
+ * 为什么需要这张表？
+ * 因为光靠 Folder.accessLevel（全员 read/write）不够细。
+ * 你可能想：「整个 workspace 默认只能看，但把 Tom 单独设成 editor」。
+ * 这就需要一张「文件夹 × 用户 × 角色」的关联表。
+ * folder  1 ──── n  FolderUser  n ──── 1  user
+ * （中间表，带 role）
+ */
 model FolderUser {
-  id        String          @id @default(cuid())
-  folderId  String
-  userId    String
-  role      FolderUserRole?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  // id —— 记录唯一标识
+  id String @id @default(cuid())
 
+  // folderId —— 哪个文件夹
+  folderId String
+
+  // userId —— 哪个用户
+  userId String
+
+  // role —— 这个用户在这个文件夹里的角色（owner/editor/viewer）
+  //         可空：没设时回退到 Folder.accessLevel 判断
+  role FolderUserRole?
+
+  // createdAt / updatedAt —— 时间戳
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // folder —— 关联回 Folder，onDelete: Cascade 表示文件夹删了，这条授权记录也跟着删
   folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // user —— 关联回 User，同理用户删了授权也删
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 同一个用户对同一个文件夹只能有一条授权记录（不能既是 viewer 又是 editor）
   @@unique([folderId, userId])
+  // 按 userId 建索引：经常查「某个用户有哪些文件夹」，加索引快
   @@index(userId)
 }
 
+/**
+ * FolderAccessRequest —— 用户「申请编辑权限」的记录
+ * ============================================================
+ * 场景：一个 read-only 的文件夹，用户想编辑，又没权限，
+ * 就点前端的 "Request edit access" 按钮 → 往这张表插一条记录，
+ * 通知文件夹 owner 审批。
+ * 这是个「动作日志」性质的表，只记录「谁申请了哪个文件夹」，不存角色
+ * （申请还没被批准，谈不上角色）。
+ */
 model FolderAccessRequest {
-  id        String   @id @default(cuid())
-  folderId  String
-  userId    String
+  // id —— 记录唯一标识
+  id String @id @default(cuid())
+
+  // folderId —— 申请访问哪个文件夹
+  folderId String
+
+  // userId —— 谁申请的
+  userId String
+
+  // createdAt —— 申请时间（没有 updatedAt，因为这是一次性动作，不更新）
   createdAt DateTime @default(now())
 
+  // folder —— 关联回 Folder，文件夹删了，申请记录也删
   folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // user —— 关联回 User
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 同一个用户对同一个文件夹只能有一条未处理的申请
   @@unique([folderId, userId])
+  // 按 userId 建索引：查「某用户提了哪些申请」
   @@index(userId)
 }
