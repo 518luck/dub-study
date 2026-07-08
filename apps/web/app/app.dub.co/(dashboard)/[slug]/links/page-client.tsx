@@ -74,14 +74,14 @@ export default function WorkspaceLinksClient() {
           : undefined
       }
     >
-      {/* 
+      {/*
       LinksDisplayProvider
       Provider 结尾的组件通常可以先理解成“上下文提供者”
       它的职责不是直接渲染页面，而是给下面的组件提供共享状态/配置
       这里很可能是在管理 links 的显示方式，比如 card / row、排序等
     */}
       <LinksDisplayProvider>
-        {/* 
+        {/*
         WorkspaceLinks
         这是页面主体内容区真正的核心组件
         links 列表、空状态（No links yet）、链接卡片等内容
@@ -133,13 +133,24 @@ export function WorkspaceLinksPageControls() {
 }
 
 function WorkspaceLinks() {
+  // router：编程式跳转（比如点 "Add domain" 跳到域名设置页）
   const router = useRouter();
+  // isValidating：links 列表是否正在请求中（用于搜索框的 loading 动画）
   const { isValidating } = useLinks();
+  // searchParams：读取 URL 查询参数（这里用来判断是否带 ?upgraded 等）
   const searchParams = useSearchParams();
+  // workspace：当前工作区信息（plan、域名、slug 等）
   const workspace = useWorkspace();
+  // 复用"创建链接"能力：LinkBuilder 弹窗 + CreateLinkButton 按钮
   const { LinkBuilder, CreateLinkButton } = useLinkBuilder();
+  // 标签相关弹窗：AddEditTagModal 是弹窗本体，setShowAddEditTagModal 控制开关
   const { AddEditTagModal, setShowAddEditTagModal } = useAddEditTagModal();
 
+  // 筛选器相关状态与方法（由 useLinkFilters 统一管理）
+  // filters：全部可用的筛选项定义
+  // activeFilters：当前已激活的筛选条件
+  // onSelect / onRemove / onRemoveFilter / onRemoveAll：增删筛选条件
+  // setSearch / setSelectedFilter：搜索词与当前选中筛选项
   const {
     filters,
     activeFilters,
@@ -151,29 +162,40 @@ function WorkspaceLinks() {
     setSelectedFilter,
   } = useLinkFilters();
 
+  // 当前所在文件夹（没进文件夹时为 undefined）
   const { folderId } = useCurrentFolderId();
+  // 文件夹权限数据是否还在加载（决定右上角按钮显示骨架还是按钮）
   const { isLoading } = useFolderPermissions();
+  // 检查当前用户在 folderId 下是否有"写链接"权限
+  // canCreateLinks 为 false 时，会显示"申请编辑权限"按钮而不是创建按钮
   const canCreateLinks = useCheckFolderPermission(
     folderId,
     "folders.links.write",
   );
 
+  // useWorkspaceStore：把"是否已关闭 .link 推广弹窗"持久化到本地（localStorage）
+  // 返回 [值, setValue, { loading }]，第三项的 loading 表示 store 初始化中
+  // dotLinkOfferDismissed === undefined 表示"还没记录过用户的选择"
   const [dotLinkOfferDismissed, _, { loading: loadingDotLinkOfferDismissed }] =
     useWorkspaceStore<string>("dotLinkOfferDismissed");
 
+  // 本组件内的标记：本次会话是否已经弹过 .link 推广弹窗（避免重复弹）
   const [showedDotLinkModal, setShowedDotLinkModal] = useState(false);
+  // .link 推广弹窗：setShowDotLinkOfferModal 控制开关，DotLinkOfferModal 是弹窗本体
   const { setShowDotLinkOfferModal, DotLinkOfferModal } =
     useDotLinkOfferModal();
 
   useEffect(() => {
+    // 本次会话已经弹过就不再弹
     if (showedDotLinkModal) return;
 
-    // We show the .link offer modal if:
-    // - The upgraded modal is not open
-    // - The user has a paid plan (and valid stripe ID)
-    // - The user has no custom domains
-    // - The user has not claimed their .link domain
-    // - The user has not dismissed the .link offer modal
+    // 弹出 .link 域名推广弹窗的条件（全部满足才弹）：
+    // - URL 里没有 ?upgraded（不是刚升级完跳回来的场景，避免抢焦点）
+    // - 有 stripeId 且 plan 非 free（付费用户才有资格领取）
+    // - 还没有任何自定义域名（才有推广价值）
+    // - 还没领取过 .link 域名（dotLinkClaimed）
+    // - 本地没有记录过"已关闭推广"的选择（dotLinkOfferDismissed === undefined）
+    // - store 已初始化完成（loadingDotLinkOfferDismissed 为 false）
     if (
       !searchParams.has("upgraded") &&
       workspace.stripeId &&
@@ -216,11 +238,12 @@ function WorkspaceLinks() {
       <LinkBuilder />
       <AddEditTagModal />
 
-      {/* 页面顶部控制区 */}
+      {/* 页面顶部控制区：筛选 / 显示切换 / 搜索 / 更多操作 */}
       <div className="flex w-full items-center">
         <PageWidthWrapper className="flex flex-col gap-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex w-full grow gap-2 md:w-auto">
+              {/* 筛选器下拉（mega workspace 不显示，因为它通常是聚合视图） */}
               {!workspace.isMegaWorkspace && (
                 <div className="grow basis-0 md:grow-0">
                   <Filter.Select
@@ -231,6 +254,9 @@ function WorkspaceLinks() {
                     onSearchChange={setSearch}
                     onSelectedFilterChange={setSelectedFilter}
                     className="w-full"
+                    // emptyState：当某个筛选项下"没有任何可选项"时展示的空状态
+                    // tagIds：没有标签 → 引导去创建标签
+                    // domain：没有域名 → 引导去添加自定义域名
                     emptyState={{
                       tagIds: (
                         <div className="flex flex-col items-center gap-2 p-2 text-center text-sm">
@@ -281,11 +307,13 @@ function WorkspaceLinks() {
                 </div>
               )}
               <div className="grow basis-0 md:grow-0">
+                {/* LinkDisplay：链接展示方式切换（列表/卡片视图等） */}
                 <LinkDisplay />
               </div>
             </div>
             <div className="flex gap-x-2 max-md:w-full">
               <div className="w-full md:w-56 xl:w-64">
+                {/* 搜索框：输入关键词搜索链接（loading 态绑定到 links 请求的 isValidating） */}
                 <SearchBoxPersisted
                   loading={isValidating}
                   inputClassName="h-10"
@@ -297,12 +325,14 @@ function WorkspaceLinks() {
                 />
               </div>
 
+              {/* 右上角按钮三态：加载中 / 可创建（更多操作）/ 无权限（申请编辑） */}
               {isLoading ? (
                 <div className="h-10 w-[2.125rem] animate-pulse rounded-md bg-neutral-200" />
               ) : canCreateLinks ? (
                 <MoreLinkOptions />
               ) : (
                 <div className="w-fit">
+                  {/* 没有写权限时，引导用户向文件夹所有者申请编辑权限 */}
                   <RequestFolderEditAccessButton
                     folderId={folderId!}
                     workspaceId={workspace.id!}
@@ -312,6 +342,7 @@ function WorkspaceLinks() {
               )}
             </div>
           </div>
+          {/* 已激活筛选条件的列表展示（可逐个移除或全部清除） */}
           <Filter.List
             filters={filters}
             activeFilters={activeFilters}
@@ -323,7 +354,10 @@ function WorkspaceLinks() {
         </PageWidthWrapper>
       </div>
 
-      {/* 页面主体内容区：真正的 links 列表与空状态 */}
+      {/* 页面主体内容区：真正的 links 列表与空状态
+          LinksContainer 会渲染表格/卡片列表、"No links yet" 空状态等。
+          把 CreateLinkButton 传进去：仅当用户有创建权限时才注入按钮，
+          否则传一个返回空片段的组件，避免空状态下出现创建按钮。 */}
       <div className="mt-3">
         <LinksContainer
           CreateLinkButton={canCreateLinks ? CreateLinkButton : () => <></>}
@@ -333,12 +367,24 @@ function WorkspaceLinks() {
   );
 }
 
+// MoreLinkOptions
+// 右上角的"更多操作"按钮（三点按钮），点开后是一个 Popover 下拉菜单。
+// 菜单内容分两块：
+//   1. Import Links：从 Bitly / Rebrandly / Short.io / CSV 导入链接
+//   2. Export Links：把当前链接导出为 CSV
+// 导入的交互方式是往 URL 上写 ?import=xxx 参数，
+// 由别的组件/路由监听该参数后再弹出对应的导入流程。
 const MoreLinkOptions = () => {
+  // useRouterStuff：封装好的 URL query 参数操作工具
   const { queryParams } = useRouterStuff();
+  // Popover 的开关状态
   const [openPopover, setOpenPopover] = useState(false);
+  // 预留的状态：用于在 Popover 内做"默认视图 / 导入视图"切换（目前未实际使用）
   const [_state, setState] = useState<"default" | "import">("default");
+  // 导出链接的弹窗
   const { ExportLinksModal, setShowExportLinksModal } = useExportLinksModal();
 
+  // Popover 关闭时，把内部状态重置回 default，下次打开从初始视图开始
   useEffect(() => {
     if (!openPopover) setState("default");
   }, [openPopover]);
@@ -349,10 +395,12 @@ const MoreLinkOptions = () => {
       <Popover
         content={
           <div className="w-full md:w-52">
+            {/* 第一块：导入链接 */}
             <div className="grid gap-px p-2">
               <p className="mb-1.5 mt-1 flex items-center gap-2 px-1 text-xs font-medium text-neutral-500">
                 Import Links
               </p>
+              {/* 从 Bitly 导入：写 ?import=bitly，由专门的导入流程接管 */}
               <ImportOption
                 onClick={() => {
                   setOpenPopover(false);
@@ -374,6 +422,7 @@ const MoreLinkOptions = () => {
                   }
                 />
               </ImportOption>
+              {/* 从 Rebrandly 导入 */}
               <ImportOption
                 onClick={() => {
                   setOpenPopover(false);
@@ -395,6 +444,7 @@ const MoreLinkOptions = () => {
                   }
                 />
               </ImportOption>
+              {/* 从 Short.io 导入 */}
               <ImportOption
                 onClick={() => {
                   setOpenPopover(false);
@@ -416,6 +466,7 @@ const MoreLinkOptions = () => {
                   }
                 />
               </ImportOption>
+              {/* 通过 CSV 文件导入 */}
               <ImportOption
                 onClick={() => {
                   setOpenPopover(false);
@@ -432,11 +483,14 @@ const MoreLinkOptions = () => {
                 />
               </ImportOption>
             </div>
+            {/* 分隔线 */}
             <div className="border-t border-neutral-200" />
+            {/* 第二块：导出链接 */}
             <div className="grid gap-px p-2">
               <p className="mb-1.5 mt-1 flex items-center gap-2 px-1 text-xs font-medium text-neutral-500">
                 Export Links
               </p>
+              {/* 导出为 CSV：打开 ExportLinksModal */}
               <button
                 onClick={() => {
                   setOpenPopover(false);
@@ -456,6 +510,7 @@ const MoreLinkOptions = () => {
         setOpenPopover={setOpenPopover}
         align="end"
       >
+        {/* Popover 触发器：三点按钮 */}
         <Button
           onClick={() => setOpenPopover(!openPopover)}
           variant="secondary"
@@ -467,6 +522,11 @@ const MoreLinkOptions = () => {
   );
 };
 
+// ImportOption
+// 导入选项的通用包装组件：负责"超额时禁用 + 提示升级"的统一处理。
+// - 若 workspace 链接数已超额（且不是 enterprise），渲染为禁用态并包一层 Tooltip，
+//   提示用户需要升级才能继续创建/导入链接。
+// - 否则渲染为正常可点击按钮，点击时执行 onClick（通常是写 ?import=xxx）。
 function ImportOption({
   children,
   onClick,
@@ -476,6 +536,7 @@ function ImportOption({
 }) {
   const { slug, exceededLinks, plan, nextPlan } = useWorkspace();
 
+  // 超额且非 enterprise：禁用 + 升级提示
   return exceededLinks && plan !== "enterprise" ? (
     <Tooltip
       content={
@@ -491,6 +552,7 @@ function ImportOption({
       </div>
     </Tooltip>
   ) : (
+    // 未超额：正常按钮，可点击触发导入流程
     <button
       onClick={onClick}
       className="w-full rounded-md p-2 hover:bg-neutral-100 active:bg-neutral-200"
