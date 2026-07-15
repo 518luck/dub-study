@@ -72,16 +72,16 @@ interface FolderDropdownProps {
 }
 
 export const FolderDropdown = ({
-  variant = "inline",
-  onFolderSelect,
-  hideViewAll = false,
-  hideFolderIcon = false,
-  buttonClassName,
-  buttonTextClassName,
-  iconClassName,
-  disableAutoRedirect = false,
-  selectedFolderId,
-  loadingPlaceholder,
+  variant = "inline", // 展示形态：inline 内联 / button 按钮
+  onFolderSelect, // 选中文件夹后的回调
+  hideViewAll = false, // 是否隐藏「查看全部」选项
+  hideFolderIcon = false, // 是否隐藏按钮上的文件夹图标
+  buttonClassName, // 触发按钮的自定义类名
+  buttonTextClassName, // 按钮文字的自定义类名
+  iconClassName, // 图标的自定义类名
+  disableAutoRedirect = false, // 选中后是否禁止自动跳转
+  selectedFolderId, // 当前选中的文件夹 id（受控）
+  loadingPlaceholder, // 加载中显示的占位内容
 }: FolderDropdownProps) => {
   const router = useRouter();
   const { slug, plan, defaultFolderId } = useWorkspace();
